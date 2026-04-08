@@ -66,6 +66,15 @@ When running packaged binary, user-editable files are read/written near the exec
 - `config/app_settings.json`
 - `data/*.xlsx` (or configured custom data directory)
 
+## Attendance workbook layout
+
+Attendance sheets use a matrix layout:
+
+- Column `A` header is `RollNo.`
+- Date columns (`YYYY-MM-DD`) are added over time as attendance is taken
+- Each student roll number has one row
+- Values are `1` (present) or `0` (absent/not marked)
+
 ## Quick troubleshooting
 
 - App starts but teacher actions fail with invalid secret:

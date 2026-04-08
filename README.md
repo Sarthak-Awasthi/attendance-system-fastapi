@@ -13,7 +13,7 @@ Local classroom attendance system with rotating QR codes and Excel-only storage.
 - First-run bootstrap when no teacher secret is configured
 - Student one-touch attendance using saved roll number on device
 - Teacher-controlled dev mode (global + per-session)
-- Excel output with fixed attendance schema
+- Excel output in roll/date matrix format
 
 ## Quick start
 
@@ -45,15 +45,22 @@ If `BASE_URL` is `127.0.0.1`/`localhost`, QR links auto-switch to detected LAN I
 
 ## Attendance data format (Excel)
 
-Each row is written with this schema:
+Each worksheet stores attendance as a matrix:
 
-- `Roll. No.`
-- `Date` (`YYYY-MM-DD`)
-- `Time` (`HH:MM:SS±HH:MM`)
-- `Session ID`
-- `IP Address`
-- `Present`
-- `Classroom Code`
+- First column header is `RollNo.`
+- Additional headers are dates in `YYYY-MM-DD` format
+- Each row represents one student roll number
+- Cell value `1` means present on that date
+- Cell value `0` means absent/not marked on that date
+
+Example:
+
+| RollNo. | 2026-04-07 | 2026-04-08 | 2026-04-09 |
+|---|---:|---:|---:|
+| 21CS1001 | 1 | 0 | 1 |
+| 21CS1002 | 1 | 0 | 0 |
+
+Date columns are created automatically when attendance is recorded for a new day.
 
 ## Dev mode behavior
 

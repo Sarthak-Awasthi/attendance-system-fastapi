@@ -6,7 +6,7 @@ from datetime import datetime
 from openpyxl import load_workbook
 
 from core.config import settings
-from services.excel_service import append_attendance_row, initialize_worksheet
+from services.excel_service import initialize_worksheet, mark_attendance
 
 
 async def main() -> None:
@@ -16,12 +16,12 @@ async def main() -> None:
 
     async def write_one(i: int) -> None:
         now = datetime.now().astimezone()
-        offset = now.strftime("%z")
-        offset_with_colon = f"{offset[:3]}:{offset[3:]}" if len(offset) == 5 else offset
-        await append_attendance_row(
+        await mark_attendance(
             course,
             sheet,
-            [f"C{i:04d}", now.date().isoformat(), f"{now.strftime('%H:%M:%S')}{offset_with_colon}", "phase8-session", f"10.0.0.{i}", 1, "CONCUR"],
+            f"C{i:04d}",
+            attendance_date=now.date().isoformat(),
+            present=1,
         )
 
     await asyncio.gather(*(write_one(i) for i in range(1, 41)))

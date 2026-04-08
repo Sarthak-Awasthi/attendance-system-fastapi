@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 from datetime import datetime, timezone
 
-from services.excel_service import append_attendance_row, initialize_worksheet
+from services.excel_service import initialize_worksheet, mark_attendance
 from services.session_manager import (
     create_session,
     get_session,
@@ -28,18 +28,13 @@ async def main() -> None:
     assert result == "VALID", result
 
     now = datetime.now(timezone.utc)
-    offset = now.strftime("%z")
-    offset_with_colon = f"{offset[:3]}:{offset[3:]}" if len(offset) == 5 else offset
-    row = [
+    await mark_attendance(
+        live["course_code"],
+        live["worksheet_name"],
         "21CS1001",
-        now.date().isoformat(),
-        f"{now.strftime('%H:%M:%S')}{offset_with_colon}",
-        session_id,
-        ip,
-        1,
-        live["classroom_code"],
-    ]
-    await append_attendance_row(live["course_code"], live["worksheet_name"], row)
+        attendance_date=now.date().isoformat(),
+        present=1,
+    )
     record_submission(session_id, ip, token)
 
     print("Smoke test passed")

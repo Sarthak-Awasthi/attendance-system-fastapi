@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from collections import defaultdict
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 import re
 from typing import Iterable
@@ -12,7 +12,7 @@ from openpyxl.styles import Font
 
 from core.config import settings
 
-HEADERS = ["Roll. No.", "Date", "Time", "Session ID", "IP Address", "Present", "Classroom Code"]
+ROLL_HEADER = "RollNo."
 course_locks: defaultdict[str, asyncio.Lock] = defaultdict(asyncio.Lock)
 
 
@@ -46,17 +46,43 @@ def _course_file_path(course_code: str) -> Path:
 def _setup_sheet(sheet) -> None:
     if sheet.max_row == 1 and sheet.max_column == 1 and sheet["A1"].value is None:
         sheet.delete_rows(1)
-    sheet.append(HEADERS)
-    for cell in sheet[1]:
-        cell.font = Font(bold=True)
+    if sheet.max_row == 0:
+        sheet.append([ROLL_HEADER])
+    if sheet["A1"].value != ROLL_HEADER:
+        sheet["A1"] = ROLL_HEADER
+    sheet["A1"].font = Font(bold=True)
     sheet.freeze_panes = "A2"
     sheet.column_dimensions["A"].width = 18
-    sheet.column_dimensions["B"].width = 14
-    sheet.column_dimensions["C"].width = 14
-    sheet.column_dimensions["D"].width = 40
-    sheet.column_dimensions["E"].width = 18
-    sheet.column_dimensions["F"].width = 10
-    sheet.column_dimensions["G"].width = 18
+
+
+def _ensure_date_column(sheet, attendance_date: str) -> int:
+    for col in range(2, sheet.max_column + 1):
+        if str(sheet.cell(row=1, column=col).value or "") == attendance_date:
+            return col
+
+    new_col = max(2, sheet.max_column + 1)
+    date_cell = sheet.cell(row=1, column=new_col, value=attendance_date)
+    date_cell.font = Font(bold=True)
+    sheet.column_dimensions[date_cell.column_letter].width = 14
+
+    for row in range(2, sheet.max_row + 1):
+        if sheet.cell(row=row, column=new_col).value is None:
+            sheet.cell(row=row, column=new_col, value=0)
+
+    return new_col
+
+
+def _ensure_roll_row(sheet, roll_number: str) -> int:
+    normalized_roll = roll_number.upper().strip()
+    for row in range(2, sheet.max_row + 1):
+        if str(sheet.cell(row=row, column=1).value or "").upper().strip() == normalized_roll:
+            return row
+
+    new_row = max(2, sheet.max_row + 1)
+    sheet.cell(row=new_row, column=1, value=normalized_roll)
+    for col in range(2, sheet.max_column + 1):
+        sheet.cell(row=new_row, column=col, value=0)
+    return new_row
 
 
 async def initialize_worksheet(course_code: str, worksheet_name: str) -> None:
@@ -75,6 +101,8 @@ def _initialize_worksheet_sync(course_code: str, worksheet_name: str) -> None:
     if worksheet_name not in workbook.sheetnames:
         sheet = workbook.create_sheet(title=worksheet_name)
         _setup_sheet(sheet)
+    else:
+        _setup_sheet(workbook[worksheet_name])
 
     if "Sheet" in workbook.sheetnames and len(workbook.sheetnames) > 1:
         default_sheet = workbook["Sheet"]
@@ -85,12 +113,47 @@ def _initialize_worksheet_sync(course_code: str, worksheet_name: str) -> None:
 
 
 async def append_attendance_row(course_code: str, worksheet_name: str, row_data: Iterable) -> None:
+    row = list(row_data)
+    if len(row) < 2:
+        raise ValueError("Attendance row must include at least roll number and date")
+
+    roll_number = str(row[0])
+    attendance_date = str(row[1])
+    present = 1
+    if len(row) > 5:
+        present = 1 if int(row[5]) else 0
+    elif len(row) > 2:
+        present = 1 if int(row[2]) else 0
+
+    await mark_attendance(course_code, worksheet_name, roll_number, attendance_date=attendance_date, present=present)
+
+
+async def mark_attendance(
+    course_code: str,
+    worksheet_name: str,
+    roll_number: str,
+    attendance_date: str | None = None,
+    present: int = 1,
+) -> None:
     lock = course_locks[course_code]
     async with lock:
-        await asyncio.to_thread(_append_attendance_row_sync, course_code, worksheet_name, list(row_data))
+        await asyncio.to_thread(
+            _mark_attendance_sync,
+            course_code,
+            worksheet_name,
+            roll_number,
+            attendance_date or date.today().isoformat(),
+            1 if present else 0,
+        )
 
 
-def _append_attendance_row_sync(course_code: str, worksheet_name: str, row_data: list) -> None:
+def _mark_attendance_sync(
+    course_code: str,
+    worksheet_name: str,
+    roll_number: str,
+    attendance_date: str,
+    present: int,
+) -> None:
     file_path = _course_file_path(course_code)
     if not file_path.exists():
         raise FileNotFoundError(f"Course workbook does not exist: {file_path}")
@@ -100,6 +163,9 @@ def _append_attendance_row_sync(course_code: str, worksheet_name: str, row_data:
         raise ValueError(f"Worksheet does not exist: {worksheet_name}")
 
     sheet = workbook[worksheet_name]
-    sheet.append(row_data)
+    _setup_sheet(sheet)
+    date_col = _ensure_date_column(sheet, attendance_date)
+    row_num = _ensure_roll_row(sheet, roll_number)
+    sheet.cell(row=row_num, column=date_col, value=1 if present else 0)
     workbook.save(file_path)
 

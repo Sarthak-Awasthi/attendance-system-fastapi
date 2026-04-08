@@ -9,7 +9,7 @@ from fastapi.responses import FileResponse
 
 from core.config import get_public_dir, settings
 from models import SubmitAttendanceRequest
-from services.excel_service import append_attendance_row
+from services.excel_service import mark_attendance
 from services.session_manager import get_session, record_submission, validate_submission
 
 router = APIRouter()
@@ -52,20 +52,14 @@ async def submit_attendance(payload: SubmitAttendanceRequest, request: Request) 
         raise HTTPException(status_code=409, detail=validation)
 
     now = datetime.now().astimezone()
-    offset = now.strftime("%z")
-    offset_with_colon = f"{offset[:3]}:{offset[3:]}" if len(offset) == 5 else offset
-    row_data = [
-        payload.rollNumber.upper(),
-        now.date().isoformat(),
-        f"{now.strftime('%H:%M:%S')}{offset_with_colon}",
-        payload.sessionId,
-        ip,
-        1,
-        session["classroom_code"],
-    ]
-
     try:
-        await append_attendance_row(session["course_code"], session["worksheet_name"], row_data)
+        await mark_attendance(
+            session["course_code"],
+            session["worksheet_name"],
+            payload.rollNumber.upper(),
+            attendance_date=now.date().isoformat(),
+            present=1,
+        )
     except Exception:
         logger.exception("Excel write failed for session %s", payload.sessionId)
         raise HTTPException(status_code=500, detail="ATTENDANCE_WRITE_FAILED")

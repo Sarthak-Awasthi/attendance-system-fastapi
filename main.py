@@ -53,9 +53,11 @@ async def startup_event() -> None:
     settings.excel_data_dir.mkdir(parents=True, exist_ok=True)
     courses = load_courses()
     runtime_base_url = get_runtime_base_url()
+    local_base_url = f"http://localhost:{settings.port}"
     logger.info("=" * 64)
     logger.info("Classroom Attendance System")
-    logger.info("Teacher UI: %s/teacher", runtime_base_url)
+    logger.info("Teacher UI (local): %s/teacher", local_base_url)
+    logger.info("Teacher UI (network): %s/teacher", runtime_base_url)
     logger.info("Student URL base: %s/attend", runtime_base_url)
     logger.info("Courses loaded: %s", len(courses))
     logger.info("Excel data dir: %s", settings.excel_data_dir)
@@ -70,4 +72,4 @@ async def root() -> RedirectResponse:
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=int(os.getenv("PORT", "3000")))
+    uvicorn.run(app, host="0.0.0.0", port=int(os.getenv("PORT", "3000")), log_level="warning")

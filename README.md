@@ -9,6 +9,7 @@ Local classroom attendance system with rotating QR codes and Excel-only storage.
   - course management (add/update/remove)
   - runtime settings (data directory, defaults, base URL)
   - teacher secret rotation
+  - password prompt on save for protected actions
 - First-run bootstrap when no teacher secret is configured
 - Student one-touch attendance using saved roll number on device
 - Teacher-controlled dev mode (global + per-session)

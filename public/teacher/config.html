@@ -19,9 +19,6 @@
 
     <section class="card stack">
       <h2 class="section-title">Security</h2>
-      <label class="label" for="secret">Teacher Secret</label>
-      <input class="input" id="secret" type="password" placeholder="Required for saving changes" />
-
       <h3 class="section-title">Change Teacher Secret</h3>
       <label class="label" for="oldSecret">Old Secret</label>
       <input class="input" id="oldSecret" type="password" placeholder="Current teacher secret" />
@@ -76,22 +73,66 @@
     <div class="status" id="status"></div>
   </main>
 
+  <div class="modal-backdrop" id="secretModalBackdrop" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="secretModalTitle" aria-describedby="secretModalDescription">
+      <h3 class="section-title" id="secretModalTitle">Confirm Teacher Secret</h3>
+      <p class="subtitle" id="secretModalDescription"></p>
+      <label class="label" for="secretModalInput">Teacher Secret</label>
+      <input class="input" id="secretModalInput" type="password" />
+      <div class="button-row">
+        <button class="button button-secondary" type="button" id="secretModalCancelBtn">Cancel</button>
+        <button class="button button-primary" type="button" id="secretModalConfirmBtn">Continue</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     const statusEl = document.getElementById('status');
     const coursesListEl = document.getElementById('coursesList');
     const courseFormEl = document.getElementById('courseForm');
     const saveCourseBtn = document.getElementById('saveCourseBtn');
+    const secretModalBackdrop = document.getElementById('secretModalBackdrop');
+    const secretModalDescription = document.getElementById('secretModalDescription');
+    const secretModalInput = document.getElementById('secretModalInput');
+    const secretModalCancelBtn = document.getElementById('secretModalCancelBtn');
+    const secretModalConfirmBtn = document.getElementById('secretModalConfirmBtn');
 
     let editingOriginalCode = null;
     let currentCourses = [];
+    let pendingSecretResolver = null;
+    let modalLastActiveElement = null;
 
     function showStatus(message, isError = false) {
       statusEl.className = `status ${isError ? 'status-error' : 'status-success'}`;
       statusEl.textContent = message;
     }
 
-    function getSecret() {
-      return document.getElementById('secret').value;
+    function closeSecretModal(value) {
+      secretModalBackdrop.hidden = true;
+      const resolver = pendingSecretResolver;
+      pendingSecretResolver = null;
+      secretModalInput.value = '';
+      if (modalLastActiveElement) {
+        modalLastActiveElement.focus();
+        modalLastActiveElement = null;
+      }
+      if (resolver) {
+        resolver(value);
+      }
+    }
+
+    function requestTeacherSecret(actionLabel) {
+      if (pendingSecretResolver) {
+        return Promise.resolve('');
+      }
+      secretModalDescription.textContent = `Enter teacher secret to ${actionLabel}.`;
+      secretModalBackdrop.hidden = false;
+      modalLastActiveElement = document.activeElement;
+
+      return new Promise((resolve) => {
+        pendingSecretResolver = resolve;
+        window.setTimeout(() => secretModalInput.focus(), 0);
+      });
     }
 
     function setCourseForm(course = null) {
@@ -163,9 +204,9 @@
     }
 
     async function removeCourse(code) {
-      const secret = getSecret();
+      const secret = (await requestTeacherSecret('remove this course')).trim();
       if (!secret) {
-        showStatus('Enter teacher secret before removing a course.', true);
+        showStatus('Teacher secret is required to remove a course.', true);
         return;
       }
 
@@ -190,9 +231,9 @@
 
     courseFormEl.addEventListener('submit', async (event) => {
       event.preventDefault();
-      const secret = getSecret();
+      const secret = (await requestTeacherSecret(editingOriginalCode ? 'update this course' : 'add this course')).trim();
       if (!secret) {
-        showStatus('Enter teacher secret before saving courses.', true);
+        showStatus('Teacher secret is required to save courses.', true);
         return;
       }
 
@@ -221,9 +262,9 @@
     });
 
     document.getElementById('saveSettingsBtn').addEventListener('click', async () => {
-      const secret = getSecret();
+      const secret = (await requestTeacherSecret('save settings')).trim();
       if (!secret) {
-        showStatus('Enter teacher secret before saving settings.', true);
+        showStatus('Teacher secret is required to save settings.', true);
         return;
       }
 
@@ -278,11 +319,36 @@
         return;
       }
 
-      document.getElementById('secret').value = newSecret;
       document.getElementById('oldSecret').value = '';
       document.getElementById('newSecret').value = '';
       document.getElementById('confirmNewSecret').value = '';
       showStatus('Teacher secret updated. Use the new secret for further changes.');
+    });
+
+    secretModalConfirmBtn.addEventListener('click', () => {
+      closeSecretModal(secretModalInput.value);
+    });
+
+    secretModalCancelBtn.addEventListener('click', () => {
+      closeSecretModal('');
+    });
+
+    secretModalBackdrop.addEventListener('click', (event) => {
+      if (event.target === secretModalBackdrop) {
+        closeSecretModal('');
+      }
+    });
+
+    secretModalInput.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        closeSecretModal(secretModalInput.value);
+        return;
+      }
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        closeSecretModal('');
+      }
     });
 
     loadConfig().catch(() => {

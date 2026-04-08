@@ -15,11 +15,13 @@ async def main() -> None:
     await initialize_worksheet(course, sheet)
 
     async def write_one(i: int) -> None:
-        now = datetime.now()
+        now = datetime.now().astimezone()
+        offset = now.strftime("%z")
+        offset_with_colon = f"{offset[:3]}:{offset[3:]}" if len(offset) == 5 else offset
         await append_attendance_row(
             course,
             sheet,
-            [f"C{i:04d}", now.date().isoformat(), now.strftime("%H:%M:%S"), "phase8-session", f"10.0.0.{i}", 1, "CONCUR"],
+            [f"C{i:04d}", now.date().isoformat(), f"{now.strftime('%H:%M:%S')}{offset_with_colon}", "phase8-session", f"10.0.0.{i}", 1, "CONCUR"],
         )
 
     await asyncio.gather(*(write_one(i) for i in range(1, 41)))

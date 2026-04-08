@@ -42,6 +42,7 @@ async def create_session(
     course_code: str,
     duration_minutes: int,
     worksheet_name: str | None = None,
+    dev_mode_enabled: bool = False,
 ) -> dict[str, Any]:
     session_id = str(uuid.uuid4())
     token = _new_token()
@@ -52,6 +53,7 @@ async def create_session(
         "classroom_code": _random_classroom_code(),
         "start_time": datetime.now().astimezone(),
         "duration_minutes": duration_minutes,
+        "dev_mode_enabled": dev_mode_enabled,
         "is_active": True,
         "rotation_task": None,
         "current_token": token,
@@ -154,6 +156,14 @@ def end_session(session_id: str) -> bool:
     return True
 
 
+def set_session_dev_mode(session_id: str, enabled: bool) -> bool:
+    session = sessions.get(session_id)
+    if not session:
+        return False
+    session["dev_mode_enabled"] = bool(enabled)
+    return True
+
+
 def _serialize_session(session: dict[str, Any]) -> dict[str, Any]:
     return {
         "session_id": session["session_id"],
@@ -162,6 +172,7 @@ def _serialize_session(session: dict[str, Any]) -> dict[str, Any]:
         "classroom_code": session["classroom_code"],
         "start_time": session["start_time"].isoformat(),
         "duration_minutes": session["duration_minutes"],
+        "dev_mode_enabled": session.get("dev_mode_enabled", False),
         "is_active": session["is_active"],
         "current_token": session["current_token"],
         "submission_count": session["submission_count"],

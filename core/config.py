@@ -39,6 +39,7 @@ _load_env()
 class Settings:
     port: int
     teacher_secret: str
+    allow_student_dev_mode: bool
     qr_rotate_interval_sec: int
     default_session_duration_minutes: int
     base_url: str
@@ -79,6 +80,7 @@ def _build_settings() -> Settings:
     return Settings(
         port=int(os.getenv("PORT", "3000")),
         teacher_secret=str(overrides.get("teacher_secret", os.getenv("TEACHER_SECRET", ""))),
+        allow_student_dev_mode=bool(overrides.get("allow_student_dev_mode", False)),
         qr_rotate_interval_sec=int(overrides.get("qr_rotate_interval_sec", os.getenv("QR_ROTATE_INTERVAL_SEC", "5"))),
         default_session_duration_minutes=int(
             overrides.get("default_session_duration_minutes", os.getenv("DEFAULT_SESSION_DURATION_MINUTES", "10"))
@@ -95,6 +97,7 @@ def refresh_runtime_settings() -> Settings:
     fresh = _build_settings()
     settings.port = fresh.port
     settings.teacher_secret = fresh.teacher_secret
+    settings.allow_student_dev_mode = fresh.allow_student_dev_mode
     settings.qr_rotate_interval_sec = fresh.qr_rotate_interval_sec
     settings.default_session_duration_minutes = fresh.default_session_duration_minutes
     settings.base_url = fresh.base_url

@@ -32,6 +32,12 @@
         <div class="metric-value" id="count">0</div>
       </div>
 
+      <label class="label" for="sessionDevMode">
+        <input id="sessionDevMode" type="checkbox" />
+        Dev mode for this session (allow repeat submissions)
+      </label>
+      <div class="status" id="devModeStatus"></div>
+
       <div class="button-row">
         <button class="button button-secondary" id="endBtn">End Session</button>
       </div>
@@ -48,6 +54,8 @@
     const remainingEl = document.getElementById('remaining');
     const countEl = document.getElementById('count');
     const classroomCodeEl = document.getElementById('classroomCode');
+    const sessionDevModeEl = document.getElementById('sessionDevMode');
+    const devModeStatusEl = document.getElementById('devModeStatus');
 
     if (!sessionId || !secret) {
       alert('Missing session details.');
@@ -64,6 +72,12 @@
       remainingEl.textContent = data.timeRemainingSeconds;
       countEl.textContent = data.submissionCount;
       classroomCodeEl.textContent = data.classroomCode;
+      sessionDevModeEl.disabled = !data.globalDevModeEnabled;
+      sessionDevModeEl.checked = Boolean(data.devModeEnabled);
+      devModeStatusEl.className = `status ${data.devModeEnabled ? 'status-success' : ''}`;
+      devModeStatusEl.textContent = !data.globalDevModeEnabled
+        ? 'Global student dev mode is off. Enable it in teacher configuration first.'
+        : (data.devModeEnabled ? 'Dev mode is active for this session.' : 'Dev mode is off for this session.');
 
       if (!data.isActive || data.timeRemainingSeconds <= 0) {
         clearInterval(timer);
@@ -80,6 +94,28 @@
       clearInterval(timer);
       alert('Session ended.');
       window.location.href = '/teacher';
+    });
+
+    sessionDevModeEl.addEventListener('change', async () => {
+      if (sessionDevModeEl.disabled) {
+        return;
+      }
+      const res = await fetch(`/api/teacher/session/${sessionId}/dev-mode`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ secret, enabled: sessionDevModeEl.checked })
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        devModeStatusEl.className = 'status status-error';
+        devModeStatusEl.textContent = data.detail || 'Failed to update dev mode.';
+        sessionDevModeEl.checked = !sessionDevModeEl.checked;
+        return;
+      }
+
+      devModeStatusEl.className = `status ${data.devModeEnabled ? 'status-success' : ''}`;
+      devModeStatusEl.textContent = data.devModeEnabled ? 'Dev mode is active for this session.' : 'Dev mode is off for this session.';
     });
 
     pollQR();

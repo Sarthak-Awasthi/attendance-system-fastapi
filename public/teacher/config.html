@@ -53,6 +53,11 @@
 
     <section class="card stack">
       <h2 class="section-title">App Settings</h2>
+      <label class="label" for="allowStudentDevMode">
+        <input id="allowStudentDevMode" type="checkbox" />
+        Allow student dev mode (for repeat submissions during testing)
+      </label>
+
       <label class="label" for="excelDataDir">Default Data Folder (Excel files)</label>
       <input class="input" id="excelDataDir" type="text" placeholder="./data" />
 
@@ -140,6 +145,7 @@
     }
 
     function fillSettings(settings) {
+      document.getElementById('allowStudentDevMode').checked = Boolean(settings.allow_student_dev_mode);
       document.getElementById('excelDataDir').value = settings.excel_data_dir || './data';
       document.getElementById('durationDefault').value = settings.default_session_duration_minutes || 10;
       document.getElementById('qrRotate').value = settings.qr_rotate_interval_sec || 5;
@@ -223,6 +229,7 @@
 
       const payload = {
         secret,
+        allowStudentDevMode: document.getElementById('allowStudentDevMode').checked,
         excelDataDir: document.getElementById('excelDataDir').value,
         defaultSessionDurationMinutes: Number(document.getElementById('durationDefault').value || 10),
         qrRotateIntervalSec: Number(document.getElementById('qrRotate').value || 5),

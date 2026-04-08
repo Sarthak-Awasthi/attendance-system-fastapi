@@ -15,6 +15,7 @@
     <h1>Attendance Form</h1>
     <p class="subtitle">Enter your roll number to mark attendance for this live session.</p>
     <div class="card">
+      <div class="status" id="devModeBadge"></div>
       <label class="label" for="roll">Roll Number</label>
       <input class="input" id="roll" type="text" placeholder="e.g. 21CS1001" maxlength="15" />
       <label class="label" for="devMode">
@@ -31,15 +32,37 @@
     const token = params.get('token');
     const sessionId = params.get('session');
     const msg = document.getElementById('msg');
+    const devModeBadge = document.getElementById('devModeBadge');
+    const devModeToggle = document.getElementById('devMode');
 
     if (!token || !sessionId) {
       msg.textContent = 'Invalid QR link.';
     }
 
+    async function loadDevModeAvailability() {
+      const res = await fetch(`/api/student/session/${encodeURIComponent(sessionId)}/mode`);
+      if (!res.ok) {
+        devModeToggle.checked = false;
+        devModeToggle.disabled = true;
+        devModeBadge.className = 'status';
+        devModeBadge.textContent = 'Dev mode status unavailable.';
+        return;
+      }
+
+      const data = await res.json();
+      const available = Boolean(data.effectiveDevModeAvailable);
+      devModeToggle.checked = false;
+      devModeToggle.disabled = !available;
+      devModeBadge.className = `status ${available ? 'status-error' : ''}`;
+      devModeBadge.textContent = available
+        ? 'Dev mode active: repeat submissions are allowed for testing.'
+        : 'Dev mode off: this device can submit once for this session.';
+    }
+
     document.getElementById('submitBtn').addEventListener('click', async () => {
       msg.textContent = '';
       const rollNumber = document.getElementById('roll').value.trim();
-      const devMode = document.getElementById('devMode').checked;
+      const devMode = devModeToggle.checked && !devModeToggle.disabled;
       const res = await fetch('/api/student/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -59,6 +82,13 @@
         detail = 'Submission failed';
       }
       window.location.href = `/static/student/result.html?ok=0&msg=${encodeURIComponent(detail)}`;
+    });
+
+    loadDevModeAvailability().catch(() => {
+      devModeToggle.checked = false;
+      devModeToggle.disabled = true;
+      devModeBadge.className = 'status';
+      devModeBadge.textContent = 'Dev mode status unavailable.';
     });
   </script>
 </body>

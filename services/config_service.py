@@ -16,6 +16,7 @@ from core.config import (
 
 ALLOWED_SETTING_KEYS = {
     "teacher_secret",
+    "allow_student_dev_mode",
     "excel_data_dir",
     "default_session_duration_minutes",
     "qr_rotate_interval_sec",
@@ -108,6 +109,7 @@ def delete_course(code: str) -> list[dict[str, str]]:
 
 def get_effective_settings() -> dict[str, Any]:
     return {
+        "allow_student_dev_mode": settings.allow_student_dev_mode,
         "excel_data_dir": str(settings.excel_data_dir),
         "default_session_duration_minutes": settings.default_session_duration_minutes,
         "qr_rotate_interval_sec": settings.qr_rotate_interval_sec,

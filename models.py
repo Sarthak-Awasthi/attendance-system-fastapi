@@ -7,6 +7,7 @@ class StartSessionRequest(BaseModel):
     courseCode: str = Field(min_length=2, max_length=20)
     durationMinutes: int = Field(ge=1, le=360)
     secret: str
+    devMode: bool = False
 
 
 class EndSessionRequest(BaseModel):
@@ -43,6 +44,7 @@ class DeleteCourseRequest(BaseModel):
 
 class UpdateTeacherSettingsRequest(BaseModel):
     secret: str
+    allowStudentDevMode: bool = False
     excelDataDir: str = Field(min_length=1, max_length=240)
     defaultSessionDurationMinutes: int = Field(ge=1, le=360)
     qrRotateIntervalSec: int = Field(ge=1, le=120)
@@ -68,5 +70,10 @@ class UpdateTeacherSecretRequest(BaseModel):
     @classmethod
     def _normalize_secret_fields(cls, value: str) -> str:
         return value.strip()
+
+
+class UpdateSessionDevModeRequest(BaseModel):
+    secret: str
+    enabled: bool
 
 

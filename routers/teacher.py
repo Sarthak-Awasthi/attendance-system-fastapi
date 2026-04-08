@@ -5,12 +5,13 @@ import logging
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import FileResponse
 
-from core.config import get_public_dir, get_runtime_base_url
+from core.config import get_public_dir, get_runtime_base_url, settings
 from core.security import is_teacher_secret_valid
 from models import (
     DeleteCourseRequest,
     EndSessionRequest,
     StartSessionRequest,
+    UpdateSessionDevModeRequest,
     UpdateTeacherSecretRequest,
     UpdateTeacherSettingsRequest,
     UpsertCourseRequest,
@@ -30,6 +31,7 @@ from services.session_manager import (
     end_session,
     get_session,
     get_time_remaining_seconds,
+    set_session_dev_mode,
 )
 
 router = APIRouter()
@@ -107,6 +109,7 @@ async def update_teacher_settings(payload: UpdateTeacherSettingsRequest) -> dict
 
     settings_data = save_app_settings(
         {
+            "allow_student_dev_mode": payload.allowStudentDevMode,
             "excel_data_dir": payload.excelDataDir,
             "default_session_duration_minutes": payload.defaultSessionDurationMinutes,
             "qr_rotate_interval_sec": payload.qrRotateIntervalSec,
@@ -150,6 +153,7 @@ async def start_session(payload: StartSessionRequest) -> dict:
         course_code,
         payload.durationMinutes,
         worksheet_name=worksheet_name,
+        dev_mode_enabled=bool(payload.devMode and settings.allow_student_dev_mode),
     )
     await initialize_worksheet(session["course_code"], session["worksheet_name"])
     logger.info("Started session %s for %s", session["session_id"], course_code)
@@ -183,8 +187,23 @@ async def get_live_qr(session_id: str, secret: str = Query(default="")) -> dict:
         "timeRemainingSeconds": get_time_remaining_seconds(session_id),
         "submissionCount": session["submission_count"],
         "classroomCode": session["classroom_code"],
+        "globalDevModeEnabled": settings.allow_student_dev_mode,
+        "devModeEnabled": bool(session.get("dev_mode_enabled", False) and settings.allow_student_dev_mode),
         "isActive": session["is_active"],
     }
+
+
+@router.put("/api/teacher/session/{session_id}/dev-mode")
+async def toggle_session_dev_mode(session_id: str, payload: UpdateSessionDevModeRequest) -> dict:
+    if not is_teacher_secret_valid(payload.secret):
+        logger.warning("Rejected dev mode toggle for %s due to invalid secret", session_id)
+        raise HTTPException(status_code=401, detail="Invalid teacher secret")
+    if not settings.allow_student_dev_mode:
+        raise HTTPException(status_code=400, detail="Enable global student dev mode in teacher configuration first")
+    if not set_session_dev_mode(session_id, payload.enabled):
+        raise HTTPException(status_code=404, detail="Session not found")
+    logger.info("Set session %s dev mode to %s", session_id, payload.enabled)
+    return {"ok": True, "devModeEnabled": payload.enabled}
 
 
 @router.post("/api/teacher/session/{session_id}/end")

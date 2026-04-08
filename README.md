@@ -23,6 +23,11 @@ Open:
 - Student scan page comes from the QR code (`/attend?...`)
 
 Student page includes a `Dev mode` toggle for testing repeat submissions from the same device during an active session.
+- Student dev mode is server-controlled:
+  - Global enable in `Teacher configuration -> App Settings`.
+  - Per-session toggle in `Teacher dashboard`.
+  - Students cannot enable repeat submits unless both are enabled.
+- Excel format note: `Date` is `YYYY-MM-DD`; `Time` is `HH:MM:SS±HH:MM` (includes timezone offset).
 
 ## Config files
 
@@ -50,6 +55,15 @@ python phase8_concurrency_test.py
 ```
 
 This runs parallel attendance writes to validate per-course Excel locking.
+
+## Dev mode API behavior check
+
+```bash
+cd /home/sarthak/Projects/Attendance-Python
+PYTHONPATH=. python tests/dev_mode_api_test.py
+```
+
+Validates duplicate submission behavior with global/session dev mode off/on.
 
 ## Build executable
 

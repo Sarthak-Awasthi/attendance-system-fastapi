@@ -19,12 +19,16 @@ python main.py
 
 Open:
 - Teacher setup: `http://127.0.0.1:3000/teacher`
+- Teacher configuration: `http://127.0.0.1:3000/teacher/config`
 - Student scan page comes from the QR code (`/attend?...`)
 
 ## Config files
 
 - Copy `.env.example` to `.env` and adjust values (`TEACHER_SECRET`, `BASE_URL`, `PORT`).
-- Update `config/courses.json` with your real courses.
+- Use the teacher configuration page to manage courses and runtime settings.
+- Teacher secret can be rotated in the teacher configuration page using old/new/confirm secret flow.
+- Runtime overrides are stored in `config/app_settings.json` (under the executable/user data directory).
+- Course changes are stored in `config/courses.json` (under the executable/user data directory).
 - If `BASE_URL` uses `127.0.0.1` / `localhost`, the app auto-detects LAN IP for QR links.
 
 ## Smoke test

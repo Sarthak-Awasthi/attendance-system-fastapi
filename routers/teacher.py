@@ -5,9 +5,24 @@ import logging
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import FileResponse
 
-from core.config import get_public_dir, get_runtime_base_url, load_courses
+from core.config import get_public_dir, get_runtime_base_url
 from core.security import is_teacher_secret_valid
-from models import EndSessionRequest, StartSessionRequest
+from models import (
+    DeleteCourseRequest,
+    EndSessionRequest,
+    StartSessionRequest,
+    UpdateTeacherSecretRequest,
+    UpdateTeacherSettingsRequest,
+    UpsertCourseRequest,
+)
+from services.config_service import (
+    change_teacher_secret,
+    delete_course,
+    get_effective_settings,
+    list_courses,
+    save_app_settings,
+    upsert_course,
+)
 from services.excel_service import get_next_worksheet_name, initialize_worksheet
 from services.qr_generator import generate_qr_base64
 from services.session_manager import (
@@ -22,7 +37,7 @@ logger = logging.getLogger(__name__)
 
 
 def _is_known_course(course_code: str) -> bool:
-    return any(course.get("code", "").upper() == course_code for course in load_courses())
+    return any(course.get("code", "").upper() == course_code for course in list_courses())
 
 
 @router.get("/teacher")
@@ -37,9 +52,86 @@ async def teacher_dashboard() -> FileResponse:
     return FileResponse(file_path)
 
 
+@router.get("/teacher/config")
+async def teacher_config_page() -> FileResponse:
+    file_path = get_public_dir() / "teacher" / "config.html"
+    return FileResponse(file_path)
+
+
 @router.get("/api/teacher/courses")
 async def get_courses() -> dict:
-    return {"courses": load_courses()}
+    return {
+        "courses": list_courses(),
+        "defaults": {
+            "durationMinutes": get_effective_settings()["default_session_duration_minutes"],
+        },
+    }
+
+
+@router.get("/api/teacher/config")
+async def get_teacher_config() -> dict:
+    return {
+        "courses": list_courses(),
+        "settings": get_effective_settings(),
+    }
+
+
+@router.post("/api/teacher/config/courses")
+async def upsert_teacher_course(payload: UpsertCourseRequest) -> dict:
+    if not is_teacher_secret_valid(payload.secret):
+        logger.warning("Rejected course upsert due to invalid teacher secret")
+        raise HTTPException(status_code=401, detail="Invalid teacher secret")
+
+    try:
+        courses = upsert_course(payload.originalCode, payload.code, payload.name)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {"ok": True, "courses": courses}
+
+
+@router.delete("/api/teacher/config/courses/{course_code}")
+async def remove_teacher_course(course_code: str, payload: DeleteCourseRequest) -> dict:
+    if not is_teacher_secret_valid(payload.secret):
+        logger.warning("Rejected course delete due to invalid teacher secret")
+        raise HTTPException(status_code=401, detail="Invalid teacher secret")
+
+    courses = delete_course(course_code)
+    return {"ok": True, "courses": courses}
+
+
+@router.put("/api/teacher/config/settings")
+async def update_teacher_settings(payload: UpdateTeacherSettingsRequest) -> dict:
+    if not is_teacher_secret_valid(payload.secret):
+        logger.warning("Rejected settings update due to invalid teacher secret")
+        raise HTTPException(status_code=401, detail="Invalid teacher secret")
+
+    settings_data = save_app_settings(
+        {
+            "excel_data_dir": payload.excelDataDir,
+            "default_session_duration_minutes": payload.defaultSessionDurationMinutes,
+            "qr_rotate_interval_sec": payload.qrRotateIntervalSec,
+            "base_url": payload.baseUrl,
+        }
+    )
+    logger.info("Updated teacher app settings")
+    return {"ok": True, "settings": settings_data}
+
+
+@router.put("/api/teacher/config/secret")
+async def update_teacher_secret(payload: UpdateTeacherSecretRequest) -> dict:
+    if not is_teacher_secret_valid(payload.oldSecret):
+        logger.warning("Rejected teacher secret update due to invalid current secret")
+        raise HTTPException(status_code=401, detail="Invalid current teacher secret")
+    if payload.newSecret != payload.confirmNewSecret:
+        raise HTTPException(status_code=400, detail="New secret and confirmation do not match")
+
+    try:
+        change_teacher_secret(payload.newSecret)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    logger.info("Teacher secret updated")
+    return {"ok": True}
 
 
 @router.post("/api/teacher/session/start")

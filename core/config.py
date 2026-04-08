@@ -35,7 +35,7 @@ def _load_env() -> None:
 _load_env()
 
 
-@dataclass(frozen=True)
+@dataclass
 class Settings:
     port: int
     teacher_secret: str
@@ -45,14 +45,61 @@ class Settings:
     excel_data_dir: Path
 
 
-settings = Settings(
-    port=int(os.getenv("PORT", "3000")),
-    teacher_secret=os.getenv("TEACHER_SECRET", ""),
-    qr_rotate_interval_sec=int(os.getenv("QR_ROTATE_INTERVAL_SEC", "5")),
-    default_session_duration_minutes=int(os.getenv("DEFAULT_SESSION_DURATION_MINUTES", "10")),
-    base_url=os.getenv("BASE_URL", "http://127.0.0.1:3000").rstrip("/"),
-    excel_data_dir=(get_user_data_dir() / os.getenv("EXCEL_DATA_DIR", "./data")).resolve(),
-)
+def get_user_config_dir() -> Path:
+    return get_user_data_dir() / "config"
+
+
+def get_user_courses_config_path() -> Path:
+    return get_user_config_dir() / "courses.json"
+
+
+def get_app_settings_path() -> Path:
+    return get_user_config_dir() / "app_settings.json"
+
+
+def _load_app_settings_overrides() -> dict[str, Any]:
+    app_settings_path = get_app_settings_path()
+    if not app_settings_path.exists():
+        return {}
+    with app_settings_path.open("r", encoding="utf-8") as handle:
+        data = json.load(handle)
+    return data if isinstance(data, dict) else {}
+
+
+def _resolve_excel_data_dir(value: str | None) -> Path:
+    raw = value if value is not None else os.getenv("EXCEL_DATA_DIR", "./data")
+    path = Path(raw)
+    if not path.is_absolute():
+        path = get_user_data_dir() / path
+    return path.resolve()
+
+
+def _build_settings() -> Settings:
+    overrides = _load_app_settings_overrides()
+    return Settings(
+        port=int(os.getenv("PORT", "3000")),
+        teacher_secret=str(overrides.get("teacher_secret", os.getenv("TEACHER_SECRET", ""))),
+        qr_rotate_interval_sec=int(overrides.get("qr_rotate_interval_sec", os.getenv("QR_ROTATE_INTERVAL_SEC", "5"))),
+        default_session_duration_minutes=int(
+            overrides.get("default_session_duration_minutes", os.getenv("DEFAULT_SESSION_DURATION_MINUTES", "10"))
+        ),
+        base_url=str(overrides.get("base_url", os.getenv("BASE_URL", "http://127.0.0.1:3000"))).rstrip("/"),
+        excel_data_dir=_resolve_excel_data_dir(overrides.get("excel_data_dir")),
+    )
+
+
+settings = _build_settings()
+
+
+def refresh_runtime_settings() -> Settings:
+    fresh = _build_settings()
+    settings.port = fresh.port
+    settings.teacher_secret = fresh.teacher_secret
+    settings.qr_rotate_interval_sec = fresh.qr_rotate_interval_sec
+    settings.default_session_duration_minutes = fresh.default_session_duration_minutes
+    settings.base_url = fresh.base_url
+    settings.excel_data_dir = fresh.excel_data_dir
+    return settings
 
 
 def get_public_dir() -> Path:
@@ -60,7 +107,7 @@ def get_public_dir() -> Path:
 
 
 def get_courses_config_path() -> Path:
-    user_path = get_user_data_dir() / "config" / "courses.json"
+    user_path = get_user_courses_config_path()
     if user_path.exists():
         return user_path
     return get_base_dir() / "config" / "courses.json"

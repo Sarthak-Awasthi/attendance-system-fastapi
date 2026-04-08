@@ -38,7 +38,6 @@ async def submit_attendance(payload: SubmitAttendanceRequest, request: Request) 
     effective_dev_mode = bool(
         settings.allow_student_dev_mode
         and session.get("dev_mode_enabled", False)
-        and payload.devMode
     )
     validation = validate_submission(payload.sessionId, payload.token, ip, allow_repeat=effective_dev_mode)
 
@@ -74,17 +73,5 @@ async def submit_attendance(payload: SubmitAttendanceRequest, request: Request) 
     record_submission(payload.sessionId, ip, payload.token)
     logger.info("Recorded attendance for roll %s in session %s", payload.rollNumber.upper(), payload.sessionId)
 
-    return {"ok": True, "message": "Attendance marked", "effectiveDevMode": effective_dev_mode}
-
-
-@router.get("/api/student/session/{session_id}/mode")
-async def get_student_session_mode(session_id: str) -> dict:
-    session = get_session(session_id)
-    if not session:
-        raise HTTPException(status_code=404, detail="SESSION_NOT_FOUND")
-    return {
-        "globalDevModeEnabled": settings.allow_student_dev_mode,
-        "sessionDevModeEnabled": bool(session.get("dev_mode_enabled", False)),
-        "effectiveDevModeAvailable": bool(settings.allow_student_dev_mode and session.get("dev_mode_enabled", False)),
-    }
+    return {"ok": True, "message": "Attendance marked"}
 

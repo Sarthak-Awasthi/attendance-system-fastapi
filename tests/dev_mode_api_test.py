@@ -49,7 +49,8 @@ def main() -> None:
         assert second == 409, f"Expected second submit 409 with session OFF, got {second}"
 
         session_id, token = _create_session_with_sheet(dev_mode_enabled=True)
-        first, second = _submit_twice(client, session_id, token, dev_mode=True)
+        # Student payload flag should not control repeat policy anymore.
+        first, second = _submit_twice(client, session_id, token, dev_mode=False)
         assert first == 200, f"Expected first submit 200, got {first}"
         assert second == 200, f"Expected second submit 200 with global/session ON, got {second}"
 

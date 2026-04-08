@@ -15,7 +15,6 @@
     <h1>Attendance Form</h1>
     <p class="subtitle">Enter your roll number to mark attendance for this live session.</p>
     <div class="card">
-      <div class="status" id="devModeBadge"></div>
       <label class="label" for="roll">Roll Number</label>
       <input class="input" id="roll" type="text" placeholder="e.g. 21CS1001" maxlength="15" />
       <label class="label" for="rememberRoll">
@@ -26,10 +25,6 @@
         <button class="button button-secondary" id="quickSubmitBtn" type="button" style="display: none;"></button>
         <button class="button button-secondary" id="clearSavedRollBtn" type="button" style="display: none;">Clear saved roll</button>
       </div>
-      <label class="label" for="devMode">
-        <input id="devMode" type="checkbox" />
-        Dev mode (allow repeat submits from same device)
-      </label>
       <button class="button button-primary" id="submitBtn">Submit Attendance</button>
       <div class="status status-error" id="msg"></div>
     </div>
@@ -40,8 +35,6 @@
     const token = params.get('token');
     const sessionId = params.get('session');
     const msg = document.getElementById('msg');
-    const devModeBadge = document.getElementById('devModeBadge');
-    const devModeToggle = document.getElementById('devMode');
     const rollInput = document.getElementById('roll');
     const rememberRollToggle = document.getElementById('rememberRoll');
     const quickSubmitBtn = document.getElementById('quickSubmitBtn');
@@ -75,11 +68,10 @@
     }
 
     async function submitAttendance(rollNumber) {
-      const devMode = devModeToggle.checked && !devModeToggle.disabled;
       const res = await fetch('/api/student/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rollNumber, token, sessionId, devMode })
+        body: JSON.stringify({ rollNumber, token, sessionId })
       });
 
       if (res.ok) {
@@ -104,26 +96,6 @@
       msg.textContent = `Saved roll loaded: ${restoredRoll}`;
     }
     renderSavedRollActions();
-
-    async function loadDevModeAvailability() {
-      const res = await fetch(`/api/student/session/${encodeURIComponent(sessionId)}/mode`);
-      if (!res.ok) {
-        devModeToggle.checked = false;
-        devModeToggle.disabled = true;
-        devModeBadge.className = 'status';
-        devModeBadge.textContent = 'Dev mode status unavailable.';
-        return;
-      }
-
-      const data = await res.json();
-      const available = Boolean(data.effectiveDevModeAvailable);
-      devModeToggle.checked = false;
-      devModeToggle.disabled = !available;
-      devModeBadge.className = `status ${available ? 'status-error' : ''}`;
-      devModeBadge.textContent = available
-        ? 'Dev mode active: repeat submissions are allowed for testing.'
-        : 'Dev mode off: this device can submit once for this session.';
-    }
 
     document.getElementById('submitBtn').addEventListener('click', async () => {
       msg.textContent = '';
@@ -162,12 +134,6 @@
       msg.textContent = 'Saved roll cleared for this device.';
     });
 
-    loadDevModeAvailability().catch(() => {
-      devModeToggle.checked = false;
-      devModeToggle.disabled = true;
-      devModeBadge.className = 'status';
-      devModeBadge.textContent = 'Dev mode status unavailable.';
-    });
   </script>
 </body>
 </html>

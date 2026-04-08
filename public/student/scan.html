@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Submit Attendance</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 520px; margin: 2rem auto; padding: 0 1rem; }
+    .card { border: 1px solid #ddd; border-radius: 8px; padding: 1rem; }
+    input, button { width: 100%; padding: 0.6rem; margin-top: 0.5rem; }
+    #msg { margin-top: 0.8rem; color: #b00020; }
+  </style>
+</head>
+<body>
+  <h1>Attendance Form</h1>
+  <div class="card">
+    <label for="roll">Roll Number</label>
+    <input id="roll" type="text" placeholder="e.g. 21CS1001" maxlength="15" />
+    <button id="submitBtn">Submit Attendance</button>
+    <div id="msg"></div>
+  </div>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('token');
+    const sessionId = params.get('session');
+    const msg = document.getElementById('msg');
+
+    if (!token || !sessionId) {
+      msg.textContent = 'Invalid QR link.';
+    }
+
+    document.getElementById('submitBtn').addEventListener('click', async () => {
+      msg.textContent = '';
+      const rollNumber = document.getElementById('roll').value.trim();
+      const res = await fetch('/api/student/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rollNumber, token, sessionId })
+      });
+
+      if (res.ok) {
+        window.location.href = '/static/student/result.html?ok=1';
+        return;
+      }
+
+      let detail = 'Submission failed';
+      try {
+        const err = await res.json();
+        detail = err.detail || detail;
+      } catch (_) {
+        detail = 'Submission failed';
+      }
+      window.location.href = `/static/student/result.html?ok=0&msg=${encodeURIComponent(detail)}`;
+    });
+  </script>
+</body>
+</html>
+

@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Teacher Dashboard</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 700px; margin: 2rem auto; padding: 0 1rem; }
+    .card { border: 1px solid #ddd; border-radius: 8px; padding: 1rem; }
+    #qr { max-width: 280px; width: 100%; border: 1px solid #eee; }
+    .metrics { margin: 0.8rem 0; }
+    button { padding: 0.7rem 1.2rem; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <h1>Live Attendance Dashboard</h1>
+  <div class="card">
+    <img id="qr" alt="Live QR code" />
+    <div class="metrics">Classroom code: <strong id="classroomCode">-</strong></div>
+    <div class="metrics">Time remaining: <strong id="remaining">-</strong> sec</div>
+    <div class="metrics">Submissions: <strong id="count">0</strong></div>
+    <button id="endBtn">End Session</button>
+    <p><a href="/teacher">Back to setup</a></p>
+  </div>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const sessionId = params.get('session');
+    const secret = params.get('secret');
+
+    const qrImg = document.getElementById('qr');
+    const remainingEl = document.getElementById('remaining');
+    const countEl = document.getElementById('count');
+    const classroomCodeEl = document.getElementById('classroomCode');
+
+    if (!sessionId || !secret) {
+      alert('Missing session details.');
+      window.location.href = '/teacher';
+    }
+
+    async function pollQR() {
+      const res = await fetch(`/api/teacher/session/${sessionId}/qr?secret=${encodeURIComponent(secret)}`);
+      if (!res.ok) {
+        return;
+      }
+      const data = await res.json();
+      qrImg.src = data.qrBase64;
+      remainingEl.textContent = data.timeRemainingSeconds;
+      countEl.textContent = data.submissionCount;
+      classroomCodeEl.textContent = data.classroomCode;
+
+      if (!data.isActive || data.timeRemainingSeconds <= 0) {
+        clearInterval(timer);
+        alert('Session has ended.');
+      }
+    }
+
+    document.getElementById('endBtn').addEventListener('click', async () => {
+      await fetch(`/api/teacher/session/${sessionId}/end`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ secret })
+      });
+      clearInterval(timer);
+      alert('Session ended.');
+      window.location.href = '/teacher';
+    });
+
+    pollQR();
+    const timer = setInterval(pollQR, 2000);
+  </script>
+</body>
+</html>
+

@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Teacher - Attendance Setup</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 640px; margin: 2rem auto; padding: 0 1rem; }
+    .card { border: 1px solid #ddd; border-radius: 8px; padding: 1rem; }
+    label { display: block; margin-top: 0.8rem; font-weight: 600; }
+    input, select, button { width: 100%; padding: 0.6rem; margin-top: 0.3rem; }
+    button { margin-top: 1rem; cursor: pointer; }
+    #error { color: #b00020; margin-top: 0.8rem; }
+  </style>
+</head>
+<body>
+  <h1>Start Attendance Session</h1>
+  <div class="card">
+    <label for="course">Course</label>
+    <select id="course"></select>
+
+    <label for="duration">Duration (minutes)</label>
+    <input id="duration" type="number" min="1" value="10" />
+
+    <label for="secret">Teacher Secret</label>
+    <input id="secret" type="password" />
+
+    <button id="startBtn">Start Session</button>
+    <div id="error"></div>
+  </div>
+
+  <script>
+    const courseSelect = document.getElementById('course');
+    const startBtn = document.getElementById('startBtn');
+    const errorEl = document.getElementById('error');
+
+    async function loadCourses() {
+      const res = await fetch('/api/teacher/courses');
+      const data = await res.json();
+      (data.courses || []).forEach((c) => {
+        const option = document.createElement('option');
+        option.value = c.code;
+        option.textContent = `${c.code} - ${c.name || ''}`;
+        courseSelect.appendChild(option);
+      });
+    }
+
+    startBtn.addEventListener('click', async () => {
+      errorEl.textContent = '';
+      const payload = {
+        courseCode: courseSelect.value,
+        durationMinutes: Number(document.getElementById('duration').value || 10),
+        secret: document.getElementById('secret').value
+      };
+
+      const res = await fetch('/api/teacher/session/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        errorEl.textContent = err.detail || 'Failed to start session';
+        return;
+      }
+
+      const data = await res.json();
+      const query = new URLSearchParams({ session: data.sessionId, secret: payload.secret });
+      window.location.href = `/teacher/dashboard?${query.toString()}`;
+    });
+
+    loadCourses().catch(() => {
+      errorEl.textContent = 'Failed to load courses.';
+    });
+  </script>
+</body>
+</html>
+

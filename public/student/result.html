@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Attendance Result</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 520px; margin: 2rem auto; padding: 0 1rem; text-align: center; }
+    .ok { color: #0a7d33; }
+    .err { color: #b00020; }
+  </style>
+</head>
+<body>
+  <h1 id="title">Attendance Result</h1>
+  <p id="message"></p>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const ok = params.get('ok') === '1';
+    const msg = params.get('msg');
+
+    const title = document.getElementById('title');
+    const message = document.getElementById('message');
+
+    if (ok) {
+      title.className = 'ok';
+      title.textContent = 'Attendance Marked';
+      message.textContent = 'Your attendance has been recorded successfully.';
+    } else {
+      title.className = 'err';
+      title.textContent = 'Attendance Failed';
+      message.textContent = msg || 'Unable to mark attendance.';
+    }
+  </script>
+</body>
+</html>
+

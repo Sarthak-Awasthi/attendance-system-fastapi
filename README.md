@@ -27,6 +27,7 @@ Student page includes a `Dev mode` toggle for testing repeat submissions from th
   - Global enable in `Teacher configuration -> App Settings`.
   - Per-session toggle in `Teacher dashboard`.
   - Students cannot enable repeat submits unless both are enabled.
+- Students can save roll number on their device for one-touch submission in future sessions.
 - Excel format note: `Date` is `YYYY-MM-DD`; `Time` is `HH:MM:SS±HH:MM` (includes timezone offset).
 
 ## Config files

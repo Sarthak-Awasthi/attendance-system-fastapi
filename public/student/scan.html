@@ -17,6 +17,10 @@
     <div class="card">
       <label class="label" for="roll">Roll Number</label>
       <input class="input" id="roll" type="text" placeholder="e.g. 21CS1001" maxlength="15" />
+      <label class="label" for="devMode">
+        <input id="devMode" type="checkbox" />
+        Dev mode (allow repeat submits from same device)
+      </label>
       <button class="button button-primary" id="submitBtn">Submit Attendance</button>
       <div class="status status-error" id="msg"></div>
     </div>
@@ -35,10 +39,11 @@
     document.getElementById('submitBtn').addEventListener('click', async () => {
       msg.textContent = '';
       const rollNumber = document.getElementById('roll').value.trim();
+      const devMode = document.getElementById('devMode').checked;
       const res = await fetch('/api/student/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rollNumber, token, sessionId })
+        body: JSON.stringify({ rollNumber, token, sessionId, devMode })
       });
 
       if (res.ok) {

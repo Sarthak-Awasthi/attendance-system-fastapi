@@ -17,6 +17,7 @@ class SubmitAttendanceRequest(BaseModel):
     rollNumber: str = Field(min_length=4, max_length=15)
     token: str
     sessionId: str
+    devMode: bool = False
 
 
 class UpsertCourseRequest(BaseModel):

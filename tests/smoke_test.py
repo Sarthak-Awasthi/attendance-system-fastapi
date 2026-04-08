@@ -27,9 +27,11 @@ async def main() -> None:
     result = validate_submission(session_id, token, ip)
     assert result == "VALID", result
 
+    now = datetime.now(timezone.utc)
     row = [
         "21CS1001",
-        datetime.now(timezone.utc).isoformat(),
+        now.date().isoformat(),
+        now.strftime("%H:%M:%S"),
         session_id,
         ip,
         1,

@@ -15,10 +15,11 @@ async def main() -> None:
     await initialize_worksheet(course, sheet)
 
     async def write_one(i: int) -> None:
+        now = datetime.now()
         await append_attendance_row(
             course,
             sheet,
-            [f"C{i:04d}", datetime.now().isoformat(), "phase8-session", f"10.0.0.{i}", 1, "CONCUR"],
+            [f"C{i:04d}", now.date().isoformat(), now.strftime("%H:%M:%S"), "phase8-session", f"10.0.0.{i}", 1, "CONCUR"],
         )
 
     await asyncio.gather(*(write_one(i) for i in range(1, 41)))

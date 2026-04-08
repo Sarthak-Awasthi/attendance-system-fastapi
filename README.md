@@ -22,6 +22,8 @@ Open:
 - Teacher configuration: `http://127.0.0.1:3000/teacher/config`
 - Student scan page comes from the QR code (`/attend?...`)
 
+Student page includes a `Dev mode` toggle for testing repeat submissions from the same device during an active session.
+
 ## Config files
 
 - Copy `.env.example` to `.env` and adjust values (`TEACHER_SECRET`, `BASE_URL`, `PORT`).

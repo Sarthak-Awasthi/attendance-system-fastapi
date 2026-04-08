@@ -30,7 +30,7 @@ async def submit_attendance(payload: SubmitAttendanceRequest, request: Request) 
         raise HTTPException(status_code=400, detail="Invalid roll number format")
 
     ip = request.client.host if request.client else "unknown"
-    validation = validate_submission(payload.sessionId, payload.token, ip)
+    validation = validate_submission(payload.sessionId, payload.token, ip, allow_repeat=payload.devMode)
 
     if validation == "SESSION_NOT_FOUND":
         logger.warning("Rejected submission: session %s not found", payload.sessionId)
@@ -46,10 +46,11 @@ async def submit_attendance(payload: SubmitAttendanceRequest, request: Request) 
     if not session:
         raise HTTPException(status_code=404, detail="SESSION_NOT_FOUND")
 
-    now = datetime.now().astimezone().isoformat()
+    now = datetime.now().astimezone()
     row_data = [
         payload.rollNumber.upper(),
-        now,
+        now.date().isoformat(),
+        now.strftime("%H:%M:%S"),
         payload.sessionId,
         ip,
         1,

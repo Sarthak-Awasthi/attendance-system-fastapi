@@ -90,7 +90,7 @@ async def _rotate_loop(session_id: str) -> None:
         session["current_token"] = _new_token()
 
 
-def validate_submission(session_id: str, token: str, ip: str) -> str:
+def validate_submission(session_id: str, token: str, ip: str, allow_repeat: bool = False) -> str:
     session = sessions.get(session_id)
     if not session:
         return "SESSION_NOT_FOUND"
@@ -99,10 +99,11 @@ def validate_submission(session_id: str, token: str, ip: str) -> str:
         return "SESSION_EXPIRED"
     if token not in {session.get("current_token"), session.get("previous_token")}:
         return "TOKEN_INVALID"
-    if token in session["used_tokens"]:
-        return "TOKEN_INVALID"
-    if ip in session["used_ips"]:
-        return "IP_ALREADY_USED"
+    if not allow_repeat:
+        if token in session["used_tokens"]:
+            return "TOKEN_INVALID"
+        if ip in session["used_ips"]:
+            return "IP_ALREADY_USED"
     return "VALID"
 
 

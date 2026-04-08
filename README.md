@@ -19,12 +19,23 @@ python main.py
 
 Open:
 - Teacher setup: `http://127.0.0.1:3000/teacher`
+- Teacher configuration: `http://127.0.0.1:3000/teacher/config`
 - Student scan page comes from the QR code (`/attend?...`)
+
+- Dev mode is teacher-controlled only:
+  - Global enable in `Teacher configuration -> App Settings`.
+  - Per-session toggle in `Teacher dashboard`.
+  - Student page does not show dev mode controls.
+- Students can save roll number on their device for one-touch submission in future sessions.
+- Excel format note: `Date` is `YYYY-MM-DD`; `Time` is `HH:MM:SS±HH:MM` (includes timezone offset).
 
 ## Config files
 
 - Copy `.env.example` to `.env` and adjust values (`TEACHER_SECRET`, `BASE_URL`, `PORT`).
-- Update `config/courses.json` with your real courses.
+- Use the teacher configuration page to manage courses and runtime settings.
+- Teacher secret can be rotated in the teacher configuration page using old/new/confirm secret flow.
+- Runtime overrides are stored in `config/app_settings.json` (under the executable/user data directory).
+- Course changes are stored in `config/courses.json` (under the executable/user data directory).
 - If `BASE_URL` uses `127.0.0.1` / `localhost`, the app auto-detects LAN IP for QR links.
 
 ## Smoke test
@@ -44,6 +55,15 @@ python phase8_concurrency_test.py
 ```
 
 This runs parallel attendance writes to validate per-course Excel locking.
+
+## Dev mode API behavior check
+
+```bash
+cd /home/sarthak/Projects/Attendance-Python
+PYTHONPATH=. python tests/dev_mode_api_test.py
+```
+
+Validates duplicate submission behavior with global/session dev mode off/on.
 
 ## Build executable
 

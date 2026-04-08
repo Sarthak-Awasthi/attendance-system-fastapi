@@ -27,9 +27,13 @@ async def main() -> None:
     result = validate_submission(session_id, token, ip)
     assert result == "VALID", result
 
+    now = datetime.now(timezone.utc)
+    offset = now.strftime("%z")
+    offset_with_colon = f"{offset[:3]}:{offset[3:]}" if len(offset) == 5 else offset
     row = [
         "21CS1001",
-        datetime.now(timezone.utc).isoformat(),
+        now.date().isoformat(),
+        f"{now.strftime('%H:%M:%S')}{offset_with_colon}",
         session_id,
         ip,
         1,

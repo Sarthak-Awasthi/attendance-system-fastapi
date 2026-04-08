@@ -7,7 +7,7 @@ from datetime import datetime
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import FileResponse
 
-from core.config import get_public_dir
+from core.config import get_public_dir, settings
 from models import SubmitAttendanceRequest
 from services.excel_service import append_attendance_row
 from services.session_manager import get_session, record_submission, validate_submission
@@ -30,7 +30,16 @@ async def submit_attendance(payload: SubmitAttendanceRequest, request: Request) 
         raise HTTPException(status_code=400, detail="Invalid roll number format")
 
     ip = request.client.host if request.client else "unknown"
-    validation = validate_submission(payload.sessionId, payload.token, ip)
+    session = get_session(payload.sessionId)
+    if not session:
+        logger.warning("Rejected submission: session %s not found", payload.sessionId)
+        raise HTTPException(status_code=404, detail="SESSION_NOT_FOUND")
+
+    effective_dev_mode = bool(
+        settings.allow_student_dev_mode
+        and session.get("dev_mode_enabled", False)
+    )
+    validation = validate_submission(payload.sessionId, payload.token, ip, allow_repeat=effective_dev_mode)
 
     if validation == "SESSION_NOT_FOUND":
         logger.warning("Rejected submission: session %s not found", payload.sessionId)
@@ -42,14 +51,13 @@ async def submit_attendance(payload: SubmitAttendanceRequest, request: Request) 
         logger.warning("Rejected submission for session %s: %s", payload.sessionId, validation)
         raise HTTPException(status_code=409, detail=validation)
 
-    session = get_session(payload.sessionId)
-    if not session:
-        raise HTTPException(status_code=404, detail="SESSION_NOT_FOUND")
-
-    now = datetime.now().astimezone().isoformat()
+    now = datetime.now().astimezone()
+    offset = now.strftime("%z")
+    offset_with_colon = f"{offset[:3]}:{offset[3:]}" if len(offset) == 5 else offset
     row_data = [
         payload.rollNumber.upper(),
-        now,
+        now.date().isoformat(),
+        f"{now.strftime('%H:%M:%S')}{offset_with_colon}",
         payload.sessionId,
         ip,
         1,

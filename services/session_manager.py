@@ -42,6 +42,7 @@ async def create_session(
     course_code: str,
     duration_minutes: int,
     worksheet_name: str | None = None,
+    dev_mode_enabled: bool = False,
 ) -> dict[str, Any]:
     session_id = str(uuid.uuid4())
     token = _new_token()
@@ -52,6 +53,7 @@ async def create_session(
         "classroom_code": _random_classroom_code(),
         "start_time": datetime.now().astimezone(),
         "duration_minutes": duration_minutes,
+        "dev_mode_enabled": dev_mode_enabled,
         "is_active": True,
         "rotation_task": None,
         "current_token": token,
@@ -90,7 +92,7 @@ async def _rotate_loop(session_id: str) -> None:
         session["current_token"] = _new_token()
 
 
-def validate_submission(session_id: str, token: str, ip: str) -> str:
+def validate_submission(session_id: str, token: str, ip: str, allow_repeat: bool = False) -> str:
     session = sessions.get(session_id)
     if not session:
         return "SESSION_NOT_FOUND"
@@ -99,10 +101,11 @@ def validate_submission(session_id: str, token: str, ip: str) -> str:
         return "SESSION_EXPIRED"
     if token not in {session.get("current_token"), session.get("previous_token")}:
         return "TOKEN_INVALID"
-    if token in session["used_tokens"]:
-        return "TOKEN_INVALID"
-    if ip in session["used_ips"]:
-        return "IP_ALREADY_USED"
+    if not allow_repeat:
+        if token in session["used_tokens"]:
+            return "TOKEN_INVALID"
+        if ip in session["used_ips"]:
+            return "IP_ALREADY_USED"
     return "VALID"
 
 
@@ -153,6 +156,14 @@ def end_session(session_id: str) -> bool:
     return True
 
 
+def set_session_dev_mode(session_id: str, enabled: bool) -> bool:
+    session = sessions.get(session_id)
+    if not session:
+        return False
+    session["dev_mode_enabled"] = bool(enabled)
+    return True
+
+
 def _serialize_session(session: dict[str, Any]) -> dict[str, Any]:
     return {
         "session_id": session["session_id"],
@@ -161,6 +172,7 @@ def _serialize_session(session: dict[str, Any]) -> dict[str, Any]:
         "classroom_code": session["classroom_code"],
         "start_time": session["start_time"].isoformat(),
         "duration_minutes": session["duration_minutes"],
+        "dev_mode_enabled": session.get("dev_mode_enabled", False),
         "is_active": session["is_active"],
         "current_token": session["current_token"],
         "submission_count": session["submission_count"],

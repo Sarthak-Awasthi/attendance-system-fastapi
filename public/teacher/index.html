@@ -14,6 +14,7 @@
     </div>
     <h1>Start Attendance Session</h1>
     <p class="subtitle">Create a timed session and share the generated QR with your class.</p>
+    <p class="mt-16"><a class="link" href="/teacher/config">Open teacher configuration</a></p>
     <div class="card">
       <label class="label" for="course">Course</label>
       <select class="select" id="course"></select>
@@ -37,12 +38,19 @@
     async function loadCourses() {
       const res = await fetch('/api/teacher/courses');
       const data = await res.json();
+      const duration = Number(data.defaults?.durationMinutes || 10);
+      document.getElementById('duration').value = String(duration);
+
       (data.courses || []).forEach((c) => {
         const option = document.createElement('option');
         option.value = c.code;
         option.textContent = `${c.code} - ${c.name || ''}`;
         courseSelect.appendChild(option);
       });
+
+      if (courseSelect.options.length === 0) {
+        errorEl.textContent = 'No courses configured. Open teacher configuration to add a course.';
+      }
     }
 
     startBtn.addEventListener('click', async () => {

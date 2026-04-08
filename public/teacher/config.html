@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Teacher Configuration</title>
+  <script src="/static/scripts/theme.js"></script>
+  <link rel="stylesheet" href="/static/styles/main.css" />
+</head>
+<body>
+  <main class="page stack">
+    <div class="page-header">
+      <button class="button button-secondary theme-toggle" type="button" data-theme-toggle aria-label="Toggle dark mode"></button>
+    </div>
+
+    <h1>Teacher Configuration</h1>
+    <p class="subtitle">Manage courses and runtime defaults without editing files manually.</p>
+    <p class="mt-16"><a class="link" href="/teacher">Back to attendance setup</a></p>
+
+    <section class="card stack">
+      <h2 class="section-title">Security</h2>
+      <label class="label" for="secret">Teacher Secret</label>
+      <input class="input" id="secret" type="password" placeholder="Required for saving changes" />
+
+      <h3 class="section-title">Change Teacher Secret</h3>
+      <label class="label" for="oldSecret">Old Secret</label>
+      <input class="input" id="oldSecret" type="password" placeholder="Current teacher secret" />
+
+      <label class="label" for="newSecret">New Secret</label>
+      <input class="input" id="newSecret" type="password" placeholder="Enter new secret" />
+
+      <label class="label" for="confirmNewSecret">Confirm New Secret</label>
+      <input class="input" id="confirmNewSecret" type="password" placeholder="Re-enter new secret" />
+
+      <button class="button button-primary" type="button" id="updateSecretBtn">Update Teacher Secret</button>
+    </section>
+
+    <section class="card stack">
+      <h2 class="section-title">Courses</h2>
+      <form class="inline-form" id="courseForm">
+        <label class="label" for="courseCode">
+          Course Code
+          <input class="input" id="courseCode" type="text" maxlength="20" placeholder="e.g. CS301" required />
+        </label>
+        <label class="label" for="courseName">
+          Course Name
+          <input class="input" id="courseName" type="text" maxlength="120" placeholder="e.g. Computer Networks" required />
+        </label>
+        <button class="button button-primary" type="submit" id="saveCourseBtn">Add Course</button>
+      </form>
+      <ul class="list" id="coursesList"></ul>
+    </section>
+
+    <section class="card stack">
+      <h2 class="section-title">App Settings</h2>
+      <label class="label" for="allowStudentDevMode">
+        <input id="allowStudentDevMode" type="checkbox" />
+        Allow student dev mode (for repeat submissions during testing)
+      </label>
+
+      <label class="label" for="excelDataDir">Default Data Folder (Excel files)</label>
+      <input class="input" id="excelDataDir" type="text" placeholder="./data" />
+
+      <label class="label" for="durationDefault">Default Session Duration (minutes)</label>
+      <input class="input" id="durationDefault" type="number" min="1" max="360" />
+
+      <label class="label" for="qrRotate">QR Rotate Interval (seconds)</label>
+      <input class="input" id="qrRotate" type="number" min="1" max="120" />
+
+      <label class="label" for="baseUrl">Base URL</label>
+      <input class="input" id="baseUrl" type="url" placeholder="http://127.0.0.1:3000" />
+
+      <button class="button button-primary" type="button" id="saveSettingsBtn">Save Settings</button>
+    </section>
+
+    <div class="status" id="status"></div>
+  </main>
+
+  <script>
+    const statusEl = document.getElementById('status');
+    const coursesListEl = document.getElementById('coursesList');
+    const courseFormEl = document.getElementById('courseForm');
+    const saveCourseBtn = document.getElementById('saveCourseBtn');
+
+    let editingOriginalCode = null;
+    let currentCourses = [];
+
+    function showStatus(message, isError = false) {
+      statusEl.className = `status ${isError ? 'status-error' : 'status-success'}`;
+      statusEl.textContent = message;
+    }
+
+    function getSecret() {
+      return document.getElementById('secret').value;
+    }
+
+    function setCourseForm(course = null) {
+      document.getElementById('courseCode').value = course?.code || '';
+      document.getElementById('courseName').value = course?.name || '';
+      editingOriginalCode = course?.code || null;
+      saveCourseBtn.textContent = course ? 'Update Course' : 'Add Course';
+    }
+
+    function renderCourses(courses) {
+      currentCourses = courses || [];
+      coursesListEl.innerHTML = '';
+
+      if (currentCourses.length === 0) {
+        const empty = document.createElement('li');
+        empty.className = 'list-item';
+        empty.innerHTML = '<div class="list-item-subtitle">No courses configured yet.</div>';
+        coursesListEl.appendChild(empty);
+        return;
+      }
+
+      currentCourses.forEach((course) => {
+        const item = document.createElement('li');
+        item.className = 'list-item';
+
+        const text = document.createElement('div');
+        text.innerHTML = `<div class="list-item-title">${course.code}</div><div class="list-item-subtitle">${course.name}</div>`;
+
+        const actions = document.createElement('div');
+        actions.className = 'actions';
+
+        const editBtn = document.createElement('button');
+        editBtn.className = 'button button-secondary';
+        editBtn.type = 'button';
+        editBtn.textContent = 'Edit';
+        editBtn.addEventListener('click', () => setCourseForm(course));
+
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'button button-secondary';
+        deleteBtn.type = 'button';
+        deleteBtn.textContent = 'Remove';
+        deleteBtn.addEventListener('click', () => removeCourse(course.code));
+
+        actions.appendChild(editBtn);
+        actions.appendChild(deleteBtn);
+
+        item.appendChild(text);
+        item.appendChild(actions);
+        coursesListEl.appendChild(item);
+      });
+    }
+
+    function fillSettings(settings) {
+      document.getElementById('allowStudentDevMode').checked = Boolean(settings.allow_student_dev_mode);
+      document.getElementById('excelDataDir').value = settings.excel_data_dir || './data';
+      document.getElementById('durationDefault').value = settings.default_session_duration_minutes || 10;
+      document.getElementById('qrRotate').value = settings.qr_rotate_interval_sec || 5;
+      document.getElementById('baseUrl').value = settings.base_url || window.location.origin;
+    }
+
+    async function loadConfig() {
+      const res = await fetch('/api/teacher/config');
+      if (!res.ok) {
+        throw new Error('Unable to load configuration');
+      }
+      const data = await res.json();
+      renderCourses(data.courses || []);
+      fillSettings(data.settings || {});
+    }
+
+    async function removeCourse(code) {
+      const secret = getSecret();
+      if (!secret) {
+        showStatus('Enter teacher secret before removing a course.', true);
+        return;
+      }
+
+      const res = await fetch(`/api/teacher/config/courses/${encodeURIComponent(code)}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ secret })
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        showStatus(data.detail || 'Failed to remove course.', true);
+        return;
+      }
+
+      renderCourses(data.courses || []);
+      if (editingOriginalCode === code) {
+        setCourseForm(null);
+      }
+      showStatus(`Removed ${code}.`);
+    }
+
+    courseFormEl.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const secret = getSecret();
+      if (!secret) {
+        showStatus('Enter teacher secret before saving courses.', true);
+        return;
+      }
+
+      const payload = {
+        code: document.getElementById('courseCode').value,
+        name: document.getElementById('courseName').value,
+        originalCode: editingOriginalCode,
+        secret
+      };
+
+      const res = await fetch('/api/teacher/config/courses', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        showStatus(data.detail || 'Failed to save course.', true);
+        return;
+      }
+
+      renderCourses(data.courses || []);
+      setCourseForm(null);
+      showStatus('Course saved.');
+    });
+
+    document.getElementById('saveSettingsBtn').addEventListener('click', async () => {
+      const secret = getSecret();
+      if (!secret) {
+        showStatus('Enter teacher secret before saving settings.', true);
+        return;
+      }
+
+      const payload = {
+        secret,
+        allowStudentDevMode: document.getElementById('allowStudentDevMode').checked,
+        excelDataDir: document.getElementById('excelDataDir').value,
+        defaultSessionDurationMinutes: Number(document.getElementById('durationDefault').value || 10),
+        qrRotateIntervalSec: Number(document.getElementById('qrRotate').value || 5),
+        baseUrl: document.getElementById('baseUrl').value
+      };
+
+      const res = await fetch('/api/teacher/config/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        showStatus(data.detail || 'Failed to save settings.', true);
+        return;
+      }
+
+      fillSettings(data.settings || {});
+      showStatus('Settings updated.');
+    });
+
+    document.getElementById('updateSecretBtn').addEventListener('click', async () => {
+      const oldSecret = document.getElementById('oldSecret').value.trim();
+      const newSecret = document.getElementById('newSecret').value.trim();
+      const confirmNewSecret = document.getElementById('confirmNewSecret').value.trim();
+
+      if (!oldSecret || !newSecret || !confirmNewSecret) {
+        showStatus('Fill old secret, new secret, and confirm new secret.', true);
+        return;
+      }
+      if (newSecret !== confirmNewSecret) {
+        showStatus('New secret and confirm new secret do not match.', true);
+        return;
+      }
+
+      const res = await fetch('/api/teacher/config/secret', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ oldSecret, newSecret, confirmNewSecret })
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        showStatus(data.detail || 'Failed to update teacher secret.', true);
+        return;
+      }
+
+      document.getElementById('secret').value = newSecret;
+      document.getElementById('oldSecret').value = '';
+      document.getElementById('newSecret').value = '';
+      document.getElementById('confirmNewSecret').value = '';
+      showStatus('Teacher secret updated. Use the new secret for further changes.');
+    });
+
+    loadConfig().catch(() => {
+      showStatus('Unable to load configuration.', true);
+    });
+  </script>
+</body>
+</html>
+

@@ -12,7 +12,7 @@ from openpyxl.styles import Font
 
 from core.config import settings
 
-HEADERS = ["Roll Number", "Timestamp", "Session ID", "IP Address", "Present", "Classroom Code"]
+HEADERS = ["Roll. No.", "Date", "Time", "Session ID", "IP Address", "Present", "Classroom Code"]
 course_locks: defaultdict[str, asyncio.Lock] = defaultdict(asyncio.Lock)
 
 
@@ -51,11 +51,12 @@ def _setup_sheet(sheet) -> None:
         cell.font = Font(bold=True)
     sheet.freeze_panes = "A2"
     sheet.column_dimensions["A"].width = 18
-    sheet.column_dimensions["B"].width = 28
-    sheet.column_dimensions["C"].width = 40
-    sheet.column_dimensions["D"].width = 18
-    sheet.column_dimensions["E"].width = 10
-    sheet.column_dimensions["F"].width = 18
+    sheet.column_dimensions["B"].width = 14
+    sheet.column_dimensions["C"].width = 14
+    sheet.column_dimensions["D"].width = 40
+    sheet.column_dimensions["E"].width = 18
+    sheet.column_dimensions["F"].width = 10
+    sheet.column_dimensions["G"].width = 18
 
 
 async def initialize_worksheet(course_code: str, worksheet_name: str) -> None:

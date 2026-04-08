@@ -17,6 +17,14 @@
     <div class="card">
       <label class="label" for="roll">Roll Number</label>
       <input class="input" id="roll" type="text" placeholder="e.g. 21CS1001" maxlength="15" />
+      <label class="label" for="rememberRoll">
+        <input id="rememberRoll" type="checkbox" />
+        Remember roll number on this device
+      </label>
+      <div class="button-row">
+        <button class="button button-secondary" id="quickSubmitBtn" type="button" style="display: none;"></button>
+        <button class="button button-secondary" id="clearSavedRollBtn" type="button" style="display: none;">Clear saved roll</button>
+      </div>
       <button class="button button-primary" id="submitBtn">Submit Attendance</button>
       <div class="status status-error" id="msg"></div>
     </div>
@@ -27,14 +35,39 @@
     const token = params.get('token');
     const sessionId = params.get('session');
     const msg = document.getElementById('msg');
+    const rollInput = document.getElementById('roll');
+    const rememberRollToggle = document.getElementById('rememberRoll');
+    const quickSubmitBtn = document.getElementById('quickSubmitBtn');
+    const clearSavedRollBtn = document.getElementById('clearSavedRollBtn');
+    const ROLL_STORAGE_KEY = 'attendance-roll-number';
 
     if (!token || !sessionId) {
       msg.textContent = 'Invalid QR link.';
     }
 
-    document.getElementById('submitBtn').addEventListener('click', async () => {
-      msg.textContent = '';
-      const rollNumber = document.getElementById('roll').value.trim();
+    function normalizeRoll(value) {
+      return String(value || '').trim().toUpperCase();
+    }
+
+    function isValidRoll(value) {
+      return /^[A-Z0-9]{4,15}$/.test(value);
+    }
+
+    function getSavedRoll() {
+      const saved = normalizeRoll(window.localStorage.getItem(ROLL_STORAGE_KEY));
+      return isValidRoll(saved) ? saved : '';
+    }
+
+    function renderSavedRollActions() {
+      const saved = getSavedRoll();
+      const hasSaved = Boolean(saved);
+      quickSubmitBtn.style.display = hasSaved ? 'inline-block' : 'none';
+      clearSavedRollBtn.style.display = hasSaved ? 'inline-block' : 'none';
+      quickSubmitBtn.textContent = hasSaved ? `One-touch submit as ${saved}` : '';
+      rememberRollToggle.checked = hasSaved;
+    }
+
+    async function submitAttendance(rollNumber) {
       const res = await fetch('/api/student/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -54,7 +87,53 @@
         detail = 'Submission failed';
       }
       window.location.href = `/static/student/result.html?ok=0&msg=${encodeURIComponent(detail)}`;
+    }
+
+    const restoredRoll = getSavedRoll();
+    if (restoredRoll) {
+      rollInput.value = restoredRoll;
+      msg.className = 'status status-success';
+      msg.textContent = `Saved roll loaded: ${restoredRoll}`;
+    }
+    renderSavedRollActions();
+
+    document.getElementById('submitBtn').addEventListener('click', async () => {
+      msg.textContent = '';
+      const rollNumber = normalizeRoll(rollInput.value);
+      if (!isValidRoll(rollNumber)) {
+        msg.className = 'status status-error';
+        msg.textContent = 'Enter a valid roll number (4-15 letters/numbers).';
+        return;
+      }
+
+      if (rememberRollToggle.checked) {
+        window.localStorage.setItem(ROLL_STORAGE_KEY, rollNumber);
+      } else {
+        window.localStorage.removeItem(ROLL_STORAGE_KEY);
+      }
+      renderSavedRollActions();
+      await submitAttendance(rollNumber);
     });
+
+    quickSubmitBtn.addEventListener('click', async () => {
+      const saved = getSavedRoll();
+      if (!saved) {
+        msg.className = 'status status-error';
+        msg.textContent = 'No saved roll found. Submit once with remember enabled.';
+        return;
+      }
+      rollInput.value = saved;
+      await submitAttendance(saved);
+    });
+
+    clearSavedRollBtn.addEventListener('click', () => {
+      window.localStorage.removeItem(ROLL_STORAGE_KEY);
+      rememberRollToggle.checked = false;
+      renderSavedRollActions();
+      msg.className = 'status';
+      msg.textContent = 'Saved roll cleared for this device.';
+    });
+
   </script>
 </body>
 </html>

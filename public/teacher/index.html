@@ -15,7 +15,19 @@
     <h1>Start Attendance Session</h1>
     <p class="subtitle">Create a timed session and share the generated QR with your class.</p>
     <p class="mt-16"><a class="link" href="/teacher/config">Open teacher configuration</a></p>
-    <div class="card">
+    <div class="card" id="bootstrapCard" style="display: none;">
+      <p class="subtitle">First run detected. Set a teacher secret to secure the system.</p>
+      <label class="label" for="bootstrapSecret">New Teacher Secret</label>
+      <input class="input" id="bootstrapSecret" type="password" />
+
+      <label class="label" for="bootstrapConfirm">Confirm Teacher Secret</label>
+      <input class="input" id="bootstrapConfirm" type="password" />
+
+      <button class="button button-primary" id="bootstrapBtn">Save Teacher Secret</button>
+      <div class="status status-error" id="bootstrapError"></div>
+    </div>
+
+    <div class="card" id="sessionCard">
       <label class="label" for="course">Course</label>
       <select class="select" id="course"></select>
 
@@ -34,8 +46,13 @@
     const courseSelect = document.getElementById('course');
     const startBtn = document.getElementById('startBtn');
     const errorEl = document.getElementById('error');
+    const bootstrapCard = document.getElementById('bootstrapCard');
+    const sessionCard = document.getElementById('sessionCard');
+    const bootstrapBtn = document.getElementById('bootstrapBtn');
+    const bootstrapErrorEl = document.getElementById('bootstrapError');
 
     async function loadCourses() {
+      courseSelect.innerHTML = '';
       const res = await fetch('/api/teacher/courses');
       const data = await res.json();
       const duration = Number(data.defaults?.durationMinutes || 10);
@@ -52,6 +69,42 @@
         errorEl.textContent = 'No courses configured. Open teacher configuration to add a course.';
       }
     }
+
+    async function checkBootstrapStatus() {
+      const res = await fetch('/api/teacher/bootstrap/status');
+      if (!res.ok) {
+        throw new Error('Failed to check bootstrap status');
+      }
+      const data = await res.json();
+      return Boolean(data.requiresBootstrap);
+    }
+
+    function setBootstrapMode(enabled) {
+      bootstrapCard.style.display = enabled ? 'block' : 'none';
+      sessionCard.style.display = enabled ? 'none' : 'block';
+    }
+
+    bootstrapBtn.addEventListener('click', async () => {
+      bootstrapErrorEl.textContent = '';
+      const newSecret = document.getElementById('bootstrapSecret').value;
+      const confirmNewSecret = document.getElementById('bootstrapConfirm').value;
+
+      const res = await fetch('/api/teacher/bootstrap', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ newSecret, confirmNewSecret })
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        bootstrapErrorEl.textContent = err.detail || 'Failed to save teacher secret';
+        return;
+      }
+
+      document.getElementById('secret').value = newSecret;
+      setBootstrapMode(false);
+      await loadCourses();
+    });
 
     startBtn.addEventListener('click', async () => {
       errorEl.textContent = '';
@@ -78,9 +131,17 @@
       window.location.href = `/teacher/dashboard?${query.toString()}`;
     });
 
-    loadCourses().catch(() => {
-      errorEl.textContent = 'Failed to load courses.';
-    });
+    (async () => {
+      try {
+        const needsBootstrap = await checkBootstrapStatus();
+        setBootstrapMode(needsBootstrap);
+        if (!needsBootstrap) {
+          await loadCourses();
+        }
+      } catch (_) {
+        errorEl.textContent = 'Failed to initialize teacher setup.';
+      }
+    })();
   </script>
 </body>
 </html>

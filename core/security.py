@@ -5,6 +5,10 @@ import hmac
 from core.config import settings
 
 
+def is_teacher_secret_configured() -> bool:
+    return bool((settings.teacher_secret or "").strip())
+
+
 def is_teacher_secret_valid(secret: str) -> bool:
     expected = settings.teacher_secret or ""
     provided = secret or ""

@@ -6,8 +6,9 @@ from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import FileResponse
 
 from core.config import get_public_dir, get_runtime_base_url, settings
-from core.security import is_teacher_secret_valid
+from core.security import is_teacher_secret_configured, is_teacher_secret_valid
 from models import (
+    BootstrapTeacherSecretRequest,
     DeleteCourseRequest,
     EndSessionRequest,
     StartSessionRequest,
@@ -68,6 +69,27 @@ async def get_courses() -> dict:
             "durationMinutes": get_effective_settings()["default_session_duration_minutes"],
         },
     }
+
+
+@router.get("/api/teacher/bootstrap/status")
+async def get_bootstrap_status() -> dict:
+    return {"requiresBootstrap": not is_teacher_secret_configured()}
+
+
+@router.post("/api/teacher/bootstrap")
+async def bootstrap_teacher_secret(payload: BootstrapTeacherSecretRequest) -> dict:
+    if is_teacher_secret_configured():
+        raise HTTPException(status_code=409, detail="Teacher secret is already configured")
+    if payload.newSecret != payload.confirmNewSecret:
+        raise HTTPException(status_code=400, detail="New secret and confirmation do not match")
+
+    try:
+        change_teacher_secret(payload.newSecret)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    logger.info("Bootstrap teacher secret configured")
+    return {"ok": True}
 
 
 @router.get("/api/teacher/config")

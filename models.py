@@ -77,3 +77,13 @@ class UpdateSessionDevModeRequest(BaseModel):
     enabled: bool
 
 
+class BootstrapTeacherSecretRequest(BaseModel):
+    newSecret: str = Field(min_length=4, max_length=120)
+    confirmNewSecret: str = Field(min_length=4, max_length=120)
+
+    @field_validator("newSecret", "confirmNewSecret")
+    @classmethod
+    def _normalize_bootstrap_secret_fields(cls, value: str) -> str:
+        return value.strip()
+
+

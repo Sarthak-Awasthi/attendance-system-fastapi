@@ -4,24 +4,40 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Teacher Dashboard</title>
-  <style>
-    body { font-family: Arial, sans-serif; max-width: 700px; margin: 2rem auto; padding: 0 1rem; }
-    .card { border: 1px solid #ddd; border-radius: 8px; padding: 1rem; }
-    #qr { max-width: 280px; width: 100%; border: 1px solid #eee; }
-    .metrics { margin: 0.8rem 0; }
-    button { padding: 0.7rem 1.2rem; cursor: pointer; }
-  </style>
+  <script src="/static/scripts/theme.js"></script>
+  <link rel="stylesheet" href="/static/styles/main.css" />
 </head>
 <body>
-  <h1>Live Attendance Dashboard</h1>
-  <div class="card">
-    <img id="qr" alt="Live QR code" />
-    <div class="metrics">Classroom code: <strong id="classroomCode">-</strong></div>
-    <div class="metrics">Time remaining: <strong id="remaining">-</strong> sec</div>
-    <div class="metrics">Submissions: <strong id="count">0</strong></div>
-    <button id="endBtn">End Session</button>
-    <p><a href="/teacher">Back to setup</a></p>
-  </div>
+  <main class="page">
+    <div class="page-header">
+      <button class="button button-secondary theme-toggle" type="button" data-theme-toggle aria-label="Toggle dark mode"></button>
+    </div>
+    <h1>Live Attendance Dashboard</h1>
+    <p class="subtitle">Track submissions in real time and end the session when complete.</p>
+    <div class="card">
+      <img class="qr" id="qr" alt="Live QR code" />
+
+      <div class="metric">
+        <div class="metric-label">Classroom code</div>
+        <div class="metric-value" id="classroomCode">-</div>
+      </div>
+
+      <div class="metric">
+        <div class="metric-label">Time remaining (seconds)</div>
+        <div class="metric-value" id="remaining">-</div>
+      </div>
+
+      <div class="metric">
+        <div class="metric-label">Submissions</div>
+        <div class="metric-value" id="count">0</div>
+      </div>
+
+      <div class="button-row">
+        <button class="button button-secondary" id="endBtn">End Session</button>
+      </div>
+      <p class="mt-16"><a class="link" href="/teacher">Back to setup</a></p>
+    </div>
+  </main>
 
   <script>
     const params = new URLSearchParams(window.location.search);

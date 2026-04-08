@@ -4,30 +4,30 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Teacher - Attendance Setup</title>
-  <style>
-    body { font-family: Arial, sans-serif; max-width: 640px; margin: 2rem auto; padding: 0 1rem; }
-    .card { border: 1px solid #ddd; border-radius: 8px; padding: 1rem; }
-    label { display: block; margin-top: 0.8rem; font-weight: 600; }
-    input, select, button { width: 100%; padding: 0.6rem; margin-top: 0.3rem; }
-    button { margin-top: 1rem; cursor: pointer; }
-    #error { color: #b00020; margin-top: 0.8rem; }
-  </style>
+  <script src="/static/scripts/theme.js"></script>
+  <link rel="stylesheet" href="/static/styles/main.css" />
 </head>
 <body>
-  <h1>Start Attendance Session</h1>
-  <div class="card">
-    <label for="course">Course</label>
-    <select id="course"></select>
+  <main class="page">
+    <div class="page-header">
+      <button class="button button-secondary theme-toggle" type="button" data-theme-toggle aria-label="Toggle dark mode"></button>
+    </div>
+    <h1>Start Attendance Session</h1>
+    <p class="subtitle">Create a timed session and share the generated QR with your class.</p>
+    <div class="card">
+      <label class="label" for="course">Course</label>
+      <select class="select" id="course"></select>
 
-    <label for="duration">Duration (minutes)</label>
-    <input id="duration" type="number" min="1" value="10" />
+      <label class="label" for="duration">Duration (minutes)</label>
+      <input class="input" id="duration" type="number" min="1" value="10" />
 
-    <label for="secret">Teacher Secret</label>
-    <input id="secret" type="password" />
+      <label class="label" for="secret">Teacher Secret</label>
+      <input class="input" id="secret" type="password" />
 
-    <button id="startBtn">Start Session</button>
-    <div id="error"></div>
-  </div>
+      <button class="button button-primary" id="startBtn">Start Session</button>
+      <div class="status status-error" id="error"></div>
+    </div>
+  </main>
 
   <script>
     const courseSelect = document.getElementById('course');

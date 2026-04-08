@@ -4,21 +4,23 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Submit Attendance</title>
-  <style>
-    body { font-family: Arial, sans-serif; max-width: 520px; margin: 2rem auto; padding: 0 1rem; }
-    .card { border: 1px solid #ddd; border-radius: 8px; padding: 1rem; }
-    input, button { width: 100%; padding: 0.6rem; margin-top: 0.5rem; }
-    #msg { margin-top: 0.8rem; color: #b00020; }
-  </style>
+  <script src="/static/scripts/theme.js"></script>
+  <link rel="stylesheet" href="/static/styles/main.css" />
 </head>
 <body>
-  <h1>Attendance Form</h1>
-  <div class="card">
-    <label for="roll">Roll Number</label>
-    <input id="roll" type="text" placeholder="e.g. 21CS1001" maxlength="15" />
-    <button id="submitBtn">Submit Attendance</button>
-    <div id="msg"></div>
-  </div>
+  <main class="page">
+    <div class="page-header">
+      <button class="button button-secondary theme-toggle" type="button" data-theme-toggle aria-label="Toggle dark mode"></button>
+    </div>
+    <h1>Attendance Form</h1>
+    <p class="subtitle">Enter your roll number to mark attendance for this live session.</p>
+    <div class="card">
+      <label class="label" for="roll">Roll Number</label>
+      <input class="input" id="roll" type="text" placeholder="e.g. 21CS1001" maxlength="15" />
+      <button class="button button-primary" id="submitBtn">Submit Attendance</button>
+      <div class="status status-error" id="msg"></div>
+    </div>
+  </main>
 
   <script>
     const params = new URLSearchParams(window.location.search);

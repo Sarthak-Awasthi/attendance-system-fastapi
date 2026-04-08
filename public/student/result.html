@@ -4,15 +4,19 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Attendance Result</title>
-  <style>
-    body { font-family: Arial, sans-serif; max-width: 520px; margin: 2rem auto; padding: 0 1rem; text-align: center; }
-    .ok { color: #0a7d33; }
-    .err { color: #b00020; }
-  </style>
+  <script src="/static/scripts/theme.js"></script>
+  <link rel="stylesheet" href="/static/styles/main.css" />
 </head>
 <body>
-  <h1 id="title">Attendance Result</h1>
-  <p id="message"></p>
+  <main class="page">
+    <div class="page-header">
+      <button class="button button-secondary theme-toggle" type="button" data-theme-toggle aria-label="Toggle dark mode"></button>
+    </div>
+    <div class="card text-center">
+      <h1 class="result-title" id="title">Attendance Result</h1>
+      <p class="result-message" id="message"></p>
+    </div>
+  </main>
 
   <script>
     const params = new URLSearchParams(window.location.search);
@@ -23,11 +27,11 @@
     const message = document.getElementById('message');
 
     if (ok) {
-      title.className = 'ok';
+      title.className = 'result-title status-success';
       title.textContent = 'Attendance Marked';
       message.textContent = 'Your attendance has been recorded successfully.';
     } else {
-      title.className = 'err';
+      title.className = 'result-title status-error';
       title.textContent = 'Attendance Failed';
       message.textContent = msg || 'Unable to mark attendance.';
     }

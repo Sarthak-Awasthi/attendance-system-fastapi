@@ -4,32 +4,51 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Teacher Dashboard</title>
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml" />
   <script src="/static/scripts/theme.js"></script>
   <link rel="stylesheet" href="/static/styles/main.css" />
 </head>
 <body>
-  <main class="page">
-    <div class="page-header">
+  <header class="topbar">
+    <a class="topbar-brand" href="/teacher">
+      <img class="topbar-logo" src="/static/iith.svg" alt="IIT Hyderabad" />
+      <span class="topbar-title">Attendance System</span>
+    </a>
+    <div class="topbar-actions">
       <button class="button button-secondary theme-toggle" type="button" data-theme-toggle aria-label="Toggle dark mode"></button>
     </div>
+  </header>
+  <div class="toast-container" id="toastContainer"></div>
+  <main class="page">
     <h1>Live Attendance Dashboard</h1>
     <p class="subtitle">Track submissions in real time and end the session when complete.</p>
-    <div class="card">
-      <img class="qr" id="qr" alt="Live QR code" />
 
-      <div class="metric">
-        <div class="metric-label">Classroom code</div>
-        <div class="metric-value" id="classroomCode">-</div>
+    <div id="sessionBanner"></div>
+
+    <div class="card" id="activePanel">
+      <div class="qr-container">
+        <div class="qr-wrapper">
+          <img class="qr" id="qr" alt="Live QR code" />
+          <div class="qr-countdown" id="qrCountdown"></div>
+        </div>
+        <div class="qr-progress">
+          <div class="qr-progress-bar" id="qrProgressBar"></div>
+        </div>
       </div>
 
-      <div class="metric">
-        <div class="metric-label">Time remaining (seconds)</div>
-        <div class="metric-value" id="remaining">-</div>
-      </div>
-
-      <div class="metric">
-        <div class="metric-label">Submissions</div>
-        <div class="metric-value" id="count">0</div>
+      <div class="metrics-grid">
+        <div class="metric">
+          <div class="metric-label">Classroom Code</div>
+          <div class="metric-value" id="classroomCode">-</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">Time Remaining</div>
+          <div class="metric-value" id="remaining">-</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">Submissions</div>
+          <div class="metric-value" id="count">0</div>
+        </div>
       </div>
 
       <label class="label" for="sessionDevMode">
@@ -39,16 +58,24 @@
       <div class="status" id="devModeStatus"></div>
 
       <div class="button-row">
-        <button class="button button-secondary" id="endBtn">End Session</button>
+        <button class="button button-danger" id="endBtn">End Session</button>
       </div>
-      <p class="mt-16"><a class="link" href="/teacher">Back to setup</a> | <a class="link" href="/teacher/config">Teacher configuration</a></p>
+      <p class="mt-16"><a class="link" href="/teacher">← Back to setup</a> | <a class="link" href="/teacher/config">Configuration</a></p>
+    </div>
+
+    <div class="card session-ended-overlay" id="endedPanel" style="display: none;">
+      <div class="result-icon result-icon-success">✓</div>
+      <h2>Session Complete</h2>
+      <p class="result-message" id="endedMessage">The attendance session has ended.</p>
+      <div class="button-row" style="justify-content: center; margin-top: var(--space-4);">
+        <a class="button button-primary" href="/teacher" style="width: auto; text-decoration: none;">Start New Session</a>
+      </div>
     </div>
   </main>
 
   <script>
-    const params = new URLSearchParams(window.location.search);
-    const sessionId = params.get('session');
-    const secret = params.get('secret');
+    const sessionId = sessionStorage.getItem('activeSessionId');
+    const secret = sessionStorage.getItem('teacherSecret');
 
     const qrImg = document.getElementById('qr');
     const remainingEl = document.getElementById('remaining');
@@ -56,71 +83,191 @@
     const classroomCodeEl = document.getElementById('classroomCode');
     const sessionDevModeEl = document.getElementById('sessionDevMode');
     const devModeStatusEl = document.getElementById('devModeStatus');
+    const qrCountdownEl = document.getElementById('qrCountdown');
+    const qrProgressBar = document.getElementById('qrProgressBar');
+    const bannerEl = document.getElementById('sessionBanner');
+    const activePanel = document.getElementById('activePanel');
+    const endedPanel = document.getElementById('endedPanel');
+    const endedMessage = document.getElementById('endedMessage');
+    const toastContainer = document.getElementById('toastContainer');
 
-    if (!sessionId || !secret) {
-      alert('Missing session details.');
-      window.location.href = '/teacher';
+    // Fallback: try URL params for backwards compatibility
+    const params = new URLSearchParams(window.location.search);
+    const effectiveSessionId = sessionId || params.get('session');
+    const effectiveSecret = secret || params.get('secret');
+
+    // Store in sessionStorage if from URL params (migrate away from URL)
+    if (!sessionId && params.get('session')) {
+      sessionStorage.setItem('activeSessionId', params.get('session'));
+      sessionStorage.setItem('teacherSecret', params.get('secret') || '');
+      // Clean URL
+      window.history.replaceState({}, '', '/teacher/dashboard');
+    }
+
+    if (!effectiveSessionId || !effectiveSecret) {
+      showToast('Missing session details. Redirecting...', 'error');
+      setTimeout(() => { window.location.href = '/teacher'; }, 1500);
+    }
+
+    let rotateIntervalSec = 5;
+    let countdownTimer = null;
+    let countdownValue = 0;
+    let lastSubmissionCount = 0;
+
+    function showToast(message, type = 'info', duration = 4000) {
+      const toast = document.createElement('div');
+      toast.className = `toast toast-${type}`;
+      toast.textContent = message;
+      toastContainer.appendChild(toast);
+      setTimeout(() => {
+        toast.classList.add('toast-out');
+        toast.addEventListener('animationend', () => toast.remove());
+      }, duration);
+    }
+
+    function showEndedState(message) {
+      activePanel.style.display = 'none';
+      endedPanel.style.display = 'block';
+      endedMessage.textContent = message || 'The attendance session has ended.';
+      clearInterval(timer);
+      clearInterval(countdownTimer);
+    }
+
+    function formatTime(seconds) {
+      const m = Math.floor(seconds / 60);
+      const s = seconds % 60;
+      return m > 0 ? `${m}m ${s}s` : `${s}s`;
+    }
+
+    function startCountdown(seconds) {
+      countdownValue = seconds;
+      qrCountdownEl.textContent = `Next QR in ${countdownValue}s`;
+      qrProgressBar.style.width = '100%';
+
+      clearInterval(countdownTimer);
+      countdownTimer = setInterval(() => {
+        countdownValue--;
+        if (countdownValue <= 0) {
+          countdownValue = 0;
+          qrCountdownEl.textContent = 'Refreshing...';
+          qrProgressBar.style.width = '0%';
+          clearInterval(countdownTimer);
+          return;
+        }
+        qrCountdownEl.textContent = `Next QR in ${countdownValue}s`;
+        const pct = (countdownValue / rotateIntervalSec) * 100;
+        qrProgressBar.style.width = pct + '%';
+      }, 1000);
     }
 
     async function pollQR() {
-      const res = await fetch(`/api/teacher/session/${sessionId}/qr?secret=${encodeURIComponent(secret)}`);
-      if (!res.ok) {
-        return;
-      }
-      const data = await res.json();
-      qrImg.src = data.qrBase64;
-      remainingEl.textContent = data.timeRemainingSeconds;
-      countEl.textContent = data.submissionCount;
-      classroomCodeEl.textContent = data.classroomCode;
-      sessionDevModeEl.disabled = !data.globalDevModeEnabled;
-      sessionDevModeEl.checked = Boolean(data.devModeEnabled);
-      devModeStatusEl.className = `status ${data.devModeEnabled ? 'status-success' : ''}`;
-      devModeStatusEl.textContent = !data.globalDevModeEnabled
-        ? 'Global student dev mode is off. Enable it in teacher configuration first.'
-        : (data.devModeEnabled ? 'Dev mode is active for this session.' : 'Dev mode is off for this session.');
+      try {
+        const res = await fetch(`/api/teacher/session/${effectiveSessionId}/qr?secret=${encodeURIComponent(effectiveSecret)}`);
+        if (!res.ok) {
+          if (res.status === 404) {
+            showEndedState('Session not found.');
+          }
+          return;
+        }
+        const data = await res.json();
+        qrImg.src = data.qrBase64;
+        remainingEl.textContent = formatTime(data.timeRemainingSeconds);
+        classroomCodeEl.textContent = data.classroomCode;
 
-      if (!data.isActive || data.timeRemainingSeconds <= 0) {
-        clearInterval(timer);
-        alert('Session has ended.');
+        // Animate submission count change
+        if (data.submissionCount !== lastSubmissionCount) {
+          countEl.textContent = data.submissionCount;
+          countEl.style.transform = 'scale(1.2)';
+          setTimeout(() => { countEl.style.transform = 'scale(1)'; }, 200);
+          if (data.submissionCount > lastSubmissionCount && lastSubmissionCount > 0) {
+            showToast(`New submission! Total: ${data.submissionCount}`, 'success', 2500);
+          }
+          lastSubmissionCount = data.submissionCount;
+        }
+
+        // Update rotation interval from server
+        if (data.qrRotateIntervalSec && data.qrRotateIntervalSec !== rotateIntervalSec) {
+          rotateIntervalSec = data.qrRotateIntervalSec;
+          clearInterval(timer);
+          timer = setInterval(pollQR, rotateIntervalSec * 1000);
+        }
+
+        // Countdown for next QR
+        startCountdown(rotateIntervalSec);
+
+        // Dev mode
+        sessionDevModeEl.disabled = !data.globalDevModeEnabled;
+        sessionDevModeEl.checked = Boolean(data.devModeEnabled);
+        devModeStatusEl.className = `status ${data.devModeEnabled ? 'status-success' : ''}`;
+        devModeStatusEl.textContent = !data.globalDevModeEnabled
+          ? 'Global dev mode is off (enable in configuration).'
+          : (data.devModeEnabled ? 'Dev mode active — repeat submissions allowed.' : 'Dev mode off for this session.');
+
+        if (!data.isActive || data.timeRemainingSeconds <= 0) {
+          showEndedState('Session time has expired.');
+        }
+      } catch (err) {
+        // Network error, keep polling
       }
     }
 
-    document.getElementById('endBtn').addEventListener('click', async () => {
-      await fetch(`/api/teacher/session/${sessionId}/end`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ secret })
-      });
-      clearInterval(timer);
-      alert('Session ended.');
-      window.location.href = '/teacher';
+    document.getElementById('endBtn').addEventListener('click', async function() {
+      if (!confirm('End this attendance session?')) return;
+
+      this.classList.add('loading');
+      this.disabled = true;
+
+      try {
+        const res = await fetch(`/api/teacher/session/${effectiveSessionId}/end`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ secret: effectiveSecret })
+        });
+
+        if (res.ok) {
+          const totalSubmissions = countEl.textContent;
+          showEndedState(`Session ended with ${totalSubmissions} submission${totalSubmissions === '1' ? '' : 's'}.`);
+          sessionStorage.removeItem('activeSessionId');
+        } else {
+          showToast('Failed to end session.', 'error');
+        }
+      } catch (err) {
+        showToast('Network error.', 'error');
+      } finally {
+        this.classList.remove('loading');
+        this.disabled = false;
+      }
     });
 
     sessionDevModeEl.addEventListener('change', async () => {
-      if (sessionDevModeEl.disabled) {
-        return;
-      }
-      const res = await fetch(`/api/teacher/session/${sessionId}/dev-mode`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ secret, enabled: sessionDevModeEl.checked })
-      });
+      if (sessionDevModeEl.disabled) return;
+      try {
+        const res = await fetch(`/api/teacher/session/${effectiveSessionId}/dev-mode`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ secret: effectiveSecret, enabled: sessionDevModeEl.checked })
+        });
 
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        devModeStatusEl.className = 'status status-error';
-        devModeStatusEl.textContent = data.detail || 'Failed to update dev mode.';
-        sessionDevModeEl.checked = !sessionDevModeEl.checked;
-        return;
-      }
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          devModeStatusEl.className = 'status status-error';
+          devModeStatusEl.textContent = data.detail || 'Failed to update dev mode.';
+          sessionDevModeEl.checked = !sessionDevModeEl.checked;
+          return;
+        }
 
-      devModeStatusEl.className = `status ${data.devModeEnabled ? 'status-success' : ''}`;
-      devModeStatusEl.textContent = data.devModeEnabled ? 'Dev mode is active for this session.' : 'Dev mode is off for this session.';
+        devModeStatusEl.className = `status ${data.devModeEnabled ? 'status-success' : ''}`;
+        devModeStatusEl.textContent = data.devModeEnabled
+          ? 'Dev mode active — repeat submissions allowed.'
+          : 'Dev mode off for this session.';
+        showToast(data.devModeEnabled ? 'Dev mode enabled' : 'Dev mode disabled', 'info', 2000);
+      } catch (err) {
+        showToast('Network error.', 'error');
+      }
     });
 
     pollQR();
-    const timer = setInterval(pollQR, 2000);
+    let timer = setInterval(pollQR, rotateIntervalSec * 1000);
   </script>
 </body>
 </html>
-

@@ -4,32 +4,40 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Teacher Configuration</title>
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml" />
   <script src="/static/scripts/theme.js"></script>
   <link rel="stylesheet" href="/static/styles/main.css" />
 </head>
 <body>
-  <main class="page stack">
-    <div class="page-header">
+  <header class="topbar">
+    <a class="topbar-brand" href="/teacher">
+      <img class="topbar-logo" src="/static/iith.svg" alt="IIT Hyderabad" />
+      <span class="topbar-title">Attendance System</span>
+    </a>
+    <div class="topbar-actions">
       <button class="button button-secondary theme-toggle" type="button" data-theme-toggle aria-label="Toggle dark mode"></button>
     </div>
+  </header>
+  <div class="toast-container" id="toastContainer"></div>
+  <main class="page stack">
 
     <h1>Teacher Configuration</h1>
-    <p class="subtitle">Manage courses and runtime defaults without editing files manually.</p>
-    <p class="mt-16"><a class="link" href="/teacher">Back to attendance setup</a></p>
+    <p class="subtitle">Manage courses, storage backend, and runtime defaults.</p>
+    <p><a class="link" href="/teacher">← Back to attendance setup</a></p>
 
     <section class="card stack">
       <h2 class="section-title">Security</h2>
-      <h3 class="section-title">Change Teacher Secret</h3>
-      <label class="label" for="oldSecret">Old Secret</label>
-      <input class="input" id="oldSecret" type="password" placeholder="Current teacher secret" />
+      <h3 style="font-size: 0.95rem; color: var(--color-text-secondary); margin: 0;">Change Teacher Secret</h3>
+      <label class="label" for="oldSecret">Current Secret</label>
+      <input class="input" id="oldSecret" type="password" placeholder="Enter current secret" />
 
       <label class="label" for="newSecret">New Secret</label>
-      <input class="input" id="newSecret" type="password" placeholder="Enter new secret" />
+      <input class="input" id="newSecret" type="password" placeholder="At least 4 characters" />
 
       <label class="label" for="confirmNewSecret">Confirm New Secret</label>
       <input class="input" id="confirmNewSecret" type="password" placeholder="Re-enter new secret" />
 
-      <button class="button button-primary" type="button" id="updateSecretBtn">Update Teacher Secret</button>
+      <button class="button button-primary" type="button" id="updateSecretBtn">Update Secret</button>
     </section>
 
     <section class="card stack">
@@ -50,24 +58,64 @@
 
     <section class="card stack">
       <h2 class="section-title">App Settings</h2>
+
       <label class="label" for="allowStudentDevMode">
         <input id="allowStudentDevMode" type="checkbox" />
-        Allow student dev mode (for repeat submissions during testing)
+        Allow student dev mode (repeat submissions for testing)
       </label>
 
-      <label class="label" for="excelDataDir">Default Data Folder (Excel files)</label>
-      <input class="input" id="excelDataDir" type="text" placeholder="./data" />
+      <hr class="divider" />
+
+      <h3 style="font-size: 0.95rem; color: var(--color-text-secondary); margin: 0;">QR & Timing</h3>
+
+      <label class="label" for="qrRotate">QR Display Interval (seconds)</label>
+      <input class="input" id="qrRotate" type="number" min="1" max="120" />
+      <div class="status" style="margin-top: 2px; font-size: 0.8rem; color: var(--color-text-muted);">How often the QR image rotates on the dashboard.</div>
+
+      <label class="label" for="tokenGrace">Token Grace Period (seconds)</label>
+      <input class="input" id="tokenGrace" type="number" min="5" max="120" />
+      <div class="status" style="margin-top: 2px; font-size: 0.8rem; color: var(--color-text-muted);">How long a scanned QR token remains valid for submission.</div>
 
       <label class="label" for="durationDefault">Default Session Duration (minutes)</label>
       <input class="input" id="durationDefault" type="number" min="1" max="360" />
 
-      <label class="label" for="qrRotate">QR Rotate Interval (seconds)</label>
-      <input class="input" id="qrRotate" type="number" min="1" max="120" />
+      <hr class="divider" />
+
+      <h3 style="font-size: 0.95rem; color: var(--color-text-secondary); margin: 0;">Storage Backend</h3>
+
+      <label class="label" for="storageBackend">Storage Type</label>
+      <select class="select" id="storageBackend">
+        <option value="excel">Excel (.xlsx) — Local files</option>
+        <option value="google_sheets">Google Sheets — Cloud</option>
+        <option value="both">Both (Excel + Google Sheets)</option>
+      </select>
+
+      <div id="excelSettings">
+        <label class="label" for="excelDataDir">Excel Data Folder</label>
+        <input class="input" id="excelDataDir" type="text" placeholder="./data" />
+      </div>
+
+      <div id="googleSheetsSettings" style="display: none;">
+        <label class="label" for="googleCredentialsPath">Service Account JSON Path</label>
+        <input class="input" id="googleCredentialsPath" type="text" placeholder="/path/to/service-account.json" />
+        <div class="status" style="margin-top: 2px; font-size: 0.8rem; color: var(--color-text-muted);">
+          Absolute path to Google Cloud service account credentials file.
+          <a class="link" href="/static/docs/google_sheets_setup.html" target="_blank">Setup guide →</a>
+        </div>
+
+        <label class="label" for="googleSpreadsheetKey">Spreadsheet Key / Mapping</label>
+        <input class="input" id="googleSpreadsheetKey" type="text" placeholder="SPREADSHEET_ID or CS301=ID1,MA101=ID2" />
+        <div class="status" style="margin-top: 2px; font-size: 0.8rem; color: var(--color-text-muted);">
+          Single spreadsheet ID for all courses, or per-course mapping (CODE=ID,CODE2=ID2).
+        </div>
+      </div>
+
+      <hr class="divider" />
 
       <label class="label" for="baseUrl">Base URL</label>
-      <input class="input" id="baseUrl" type="url" placeholder="http://127.0.0.1:3000" />
+      <input class="input" id="baseUrl" type="url" placeholder="http://192.168.1.100:3000" />
 
-      <button class="button button-primary" type="button" id="saveSettingsBtn">Save Settings</button>
+      <button class="button button-primary" type="button" id="saveSettingsBtn" style="margin-top: var(--space-3);">Save Settings</button>
     </section>
 
     <div class="status" id="status"></div>
@@ -96,11 +144,26 @@
     const secretModalInput = document.getElementById('secretModalInput');
     const secretModalCancelBtn = document.getElementById('secretModalCancelBtn');
     const secretModalConfirmBtn = document.getElementById('secretModalConfirmBtn');
+    const storageBackendSelect = document.getElementById('storageBackend');
+    const excelSettingsDiv = document.getElementById('excelSettings');
+    const googleSheetsSettingsDiv = document.getElementById('googleSheetsSettings');
+    const toastContainer = document.getElementById('toastContainer');
 
     let editingOriginalCode = null;
     let currentCourses = [];
     let pendingSecretResolver = null;
     let modalLastActiveElement = null;
+
+    function showToast(message, type = 'info', duration = 4000) {
+      const toast = document.createElement('div');
+      toast.className = `toast toast-${type}`;
+      toast.textContent = message;
+      toastContainer.appendChild(toast);
+      setTimeout(() => {
+        toast.classList.add('toast-out');
+        toast.addEventListener('animationend', () => toast.remove());
+      }, duration);
+    }
 
     function showStatus(message, isError = false) {
       statusEl.className = `status ${isError ? 'status-error' : 'status-success'}`;
@@ -116,19 +179,14 @@
         modalLastActiveElement.focus();
         modalLastActiveElement = null;
       }
-      if (resolver) {
-        resolver(value);
-      }
+      if (resolver) resolver(value);
     }
 
     function requestTeacherSecret(actionLabel) {
-      if (pendingSecretResolver) {
-        return Promise.resolve('');
-      }
+      if (pendingSecretResolver) return Promise.resolve('');
       secretModalDescription.textContent = `Enter teacher secret to ${actionLabel}.`;
       secretModalBackdrop.hidden = false;
       modalLastActiveElement = document.activeElement;
-
       return new Promise((resolve) => {
         pendingSecretResolver = resolve;
         window.setTimeout(() => secretModalInput.focus(), 0);
@@ -174,30 +232,41 @@
         deleteBtn.className = 'button button-secondary';
         deleteBtn.type = 'button';
         deleteBtn.textContent = 'Remove';
+        deleteBtn.style.color = 'var(--color-danger)';
         deleteBtn.addEventListener('click', () => removeCourse(course.code));
 
         actions.appendChild(editBtn);
         actions.appendChild(deleteBtn);
-
         item.appendChild(text);
         item.appendChild(actions);
         coursesListEl.appendChild(item);
       });
     }
 
-    function fillSettings(settings) {
-      document.getElementById('allowStudentDevMode').checked = Boolean(settings.allow_student_dev_mode);
-      document.getElementById('excelDataDir').value = settings.excel_data_dir || './data';
-      document.getElementById('durationDefault').value = settings.default_session_duration_minutes || 10;
-      document.getElementById('qrRotate').value = settings.qr_rotate_interval_sec || 5;
-      document.getElementById('baseUrl').value = settings.base_url || window.location.origin;
+    function updateStorageVisibility() {
+      const val = storageBackendSelect.value;
+      excelSettingsDiv.style.display = (val === 'google_sheets') ? 'none' : 'block';
+      googleSheetsSettingsDiv.style.display = (val === 'excel') ? 'none' : 'block';
+    }
+
+    storageBackendSelect.addEventListener('change', updateStorageVisibility);
+
+    function fillSettings(s) {
+      document.getElementById('allowStudentDevMode').checked = Boolean(s.allow_student_dev_mode);
+      document.getElementById('excelDataDir').value = s.excel_data_dir || './data';
+      document.getElementById('durationDefault').value = s.default_session_duration_minutes || 10;
+      document.getElementById('qrRotate').value = s.qr_rotate_interval_sec || 5;
+      document.getElementById('tokenGrace').value = s.token_grace_period_sec || 30;
+      document.getElementById('baseUrl').value = s.base_url || window.location.origin;
+      storageBackendSelect.value = s.storage_backend || 'excel';
+      document.getElementById('googleCredentialsPath').value = s.google_credentials_path || '';
+      document.getElementById('googleSpreadsheetKey').value = s.google_spreadsheet_key || '';
+      updateStorageVisibility();
     }
 
     async function loadConfig() {
       const res = await fetch('/api/teacher/config');
-      if (!res.ok) {
-        throw new Error('Unable to load configuration');
-      }
+      if (!res.ok) throw new Error('Unable to load configuration');
       const data = await res.json();
       renderCourses(data.courses || []);
       fillSettings(data.settings || {});
@@ -205,10 +274,7 @@
 
     async function removeCourse(code) {
       const secret = (await requestTeacherSecret('remove this course')).trim();
-      if (!secret) {
-        showStatus('Teacher secret is required to remove a course.', true);
-        return;
-      }
+      if (!secret) { showStatus('Secret required.', true); return; }
 
       const res = await fetch(`/api/teacher/config/courses/${encodeURIComponent(code)}`, {
         method: 'DELETE',
@@ -217,25 +283,17 @@
       });
 
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        showStatus(data.detail || 'Failed to remove course.', true);
-        return;
-      }
+      if (!res.ok) { showStatus(data.detail || 'Failed to remove course.', true); return; }
 
       renderCourses(data.courses || []);
-      if (editingOriginalCode === code) {
-        setCourseForm(null);
-      }
-      showStatus(`Removed ${code}.`);
+      if (editingOriginalCode === code) setCourseForm(null);
+      showToast(`Removed ${code}`, 'success');
     }
 
     courseFormEl.addEventListener('submit', async (event) => {
       event.preventDefault();
       const secret = (await requestTeacherSecret(editingOriginalCode ? 'update this course' : 'add this course')).trim();
-      if (!secret) {
-        showStatus('Teacher secret is required to save courses.', true);
-        return;
-      }
+      if (!secret) { showStatus('Secret required.', true); return; }
 
       const payload = {
         code: document.getElementById('courseCode').value,
@@ -244,117 +302,112 @@
         secret
       };
 
-      const res = await fetch('/api/teacher/config/courses', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
+      saveCourseBtn.classList.add('loading');
+      saveCourseBtn.disabled = true;
 
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        showStatus(data.detail || 'Failed to save course.', true);
-        return;
+      try {
+        const res = await fetch('/api/teacher/config/courses', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) { showStatus(data.detail || 'Failed to save course.', true); return; }
+
+        renderCourses(data.courses || []);
+        setCourseForm(null);
+        showToast('Course saved', 'success');
+      } finally {
+        saveCourseBtn.classList.remove('loading');
+        saveCourseBtn.disabled = false;
       }
-
-      renderCourses(data.courses || []);
-      setCourseForm(null);
-      showStatus('Course saved.');
     });
 
-    document.getElementById('saveSettingsBtn').addEventListener('click', async () => {
+    document.getElementById('saveSettingsBtn').addEventListener('click', async function() {
       const secret = (await requestTeacherSecret('save settings')).trim();
-      if (!secret) {
-        showStatus('Teacher secret is required to save settings.', true);
-        return;
+      if (!secret) { showStatus('Secret required.', true); return; }
+
+      this.classList.add('loading');
+      this.disabled = true;
+
+      try {
+        const payload = {
+          secret,
+          allowStudentDevMode: document.getElementById('allowStudentDevMode').checked,
+          excelDataDir: document.getElementById('excelDataDir').value,
+          defaultSessionDurationMinutes: Number(document.getElementById('durationDefault').value || 10),
+          qrRotateIntervalSec: Number(document.getElementById('qrRotate').value || 5),
+          tokenGracePeriodSec: Number(document.getElementById('tokenGrace').value || 30),
+          baseUrl: document.getElementById('baseUrl').value,
+          storageBackend: storageBackendSelect.value,
+          googleCredentialsPath: document.getElementById('googleCredentialsPath').value,
+          googleSpreadsheetKey: document.getElementById('googleSpreadsheetKey').value,
+        };
+
+        const res = await fetch('/api/teacher/config/settings', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) { showStatus(data.detail || 'Failed to save settings.', true); return; }
+
+        fillSettings(data.settings || {});
+        showToast('Settings updated', 'success');
+      } finally {
+        this.classList.remove('loading');
+        this.disabled = false;
       }
-
-      const payload = {
-        secret,
-        allowStudentDevMode: document.getElementById('allowStudentDevMode').checked,
-        excelDataDir: document.getElementById('excelDataDir').value,
-        defaultSessionDurationMinutes: Number(document.getElementById('durationDefault').value || 10),
-        qrRotateIntervalSec: Number(document.getElementById('qrRotate').value || 5),
-        baseUrl: document.getElementById('baseUrl').value
-      };
-
-      const res = await fetch('/api/teacher/config/settings', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        showStatus(data.detail || 'Failed to save settings.', true);
-        return;
-      }
-
-      fillSettings(data.settings || {});
-      showStatus('Settings updated.');
     });
 
-    document.getElementById('updateSecretBtn').addEventListener('click', async () => {
+    document.getElementById('updateSecretBtn').addEventListener('click', async function() {
       const oldSecret = document.getElementById('oldSecret').value.trim();
       const newSecret = document.getElementById('newSecret').value.trim();
       const confirmNewSecret = document.getElementById('confirmNewSecret').value.trim();
 
       if (!oldSecret || !newSecret || !confirmNewSecret) {
-        showStatus('Fill old secret, new secret, and confirm new secret.', true);
+        showStatus('All secret fields are required.', true);
         return;
       }
       if (newSecret !== confirmNewSecret) {
-        showStatus('New secret and confirm new secret do not match.', true);
+        showStatus('New secret and confirmation do not match.', true);
         return;
       }
 
-      const res = await fetch('/api/teacher/config/secret', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ oldSecret, newSecret, confirmNewSecret })
-      });
+      this.classList.add('loading');
+      this.disabled = true;
 
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        showStatus(data.detail || 'Failed to update teacher secret.', true);
-        return;
-      }
+      try {
+        const res = await fetch('/api/teacher/config/secret', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ oldSecret, newSecret, confirmNewSecret })
+        });
 
-      document.getElementById('oldSecret').value = '';
-      document.getElementById('newSecret').value = '';
-      document.getElementById('confirmNewSecret').value = '';
-      showStatus('Teacher secret updated. Use the new secret for further changes.');
-    });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) { showStatus(data.detail || 'Failed to update secret.', true); return; }
 
-    secretModalConfirmBtn.addEventListener('click', () => {
-      closeSecretModal(secretModalInput.value);
-    });
-
-    secretModalCancelBtn.addEventListener('click', () => {
-      closeSecretModal('');
-    });
-
-    secretModalBackdrop.addEventListener('click', (event) => {
-      if (event.target === secretModalBackdrop) {
-        closeSecretModal('');
+        document.getElementById('oldSecret').value = '';
+        document.getElementById('newSecret').value = '';
+        document.getElementById('confirmNewSecret').value = '';
+        showToast('Teacher secret updated', 'success');
+      } finally {
+        this.classList.remove('loading');
+        this.disabled = false;
       }
     });
 
-    secretModalInput.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter') {
-        event.preventDefault();
-        closeSecretModal(secretModalInput.value);
-        return;
-      }
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        closeSecretModal('');
-      }
+    secretModalConfirmBtn.addEventListener('click', () => closeSecretModal(secretModalInput.value));
+    secretModalCancelBtn.addEventListener('click', () => closeSecretModal(''));
+    secretModalBackdrop.addEventListener('click', (e) => { if (e.target === secretModalBackdrop) closeSecretModal(''); });
+    secretModalInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); closeSecretModal(secretModalInput.value); }
+      if (e.key === 'Escape') { e.preventDefault(); closeSecretModal(''); }
     });
 
-    loadConfig().catch(() => {
-      showStatus('Unable to load configuration.', true);
-    });
+    loadConfig().catch(() => showStatus('Unable to load configuration.', true));
   </script>
 </body>
 </html>
-

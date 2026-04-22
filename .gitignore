@@ -220,3 +220,4 @@ __marimo__/
 # Attendance app runtime artifacts
 data/
 
+.vscode

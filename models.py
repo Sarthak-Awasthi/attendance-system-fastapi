@@ -48,7 +48,11 @@ class UpdateTeacherSettingsRequest(BaseModel):
     excelDataDir: str = Field(min_length=1, max_length=240)
     defaultSessionDurationMinutes: int = Field(ge=1, le=360)
     qrRotateIntervalSec: int = Field(ge=1, le=120)
+    tokenGracePeriodSec: int = Field(ge=5, le=120)
     baseUrl: str = Field(min_length=8, max_length=200)
+    storageBackend: str = Field(default="excel", pattern=r"^(excel|google_sheets|both)$")
+    googleCredentialsPath: str = Field(default="", max_length=500)
+    googleSpreadsheetKey: str = Field(default="", max_length=200)
 
     @field_validator("excelDataDir")
     @classmethod

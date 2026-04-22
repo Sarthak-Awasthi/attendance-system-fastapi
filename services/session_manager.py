@@ -46,18 +46,21 @@ async def create_session(
 ) -> dict[str, Any]:
     session_id = str(uuid.uuid4())
     token = _new_token()
+    now = datetime.now().astimezone()
     session = {
         "session_id": session_id,
         "course_code": course_code,
         "worksheet_name": worksheet_name or _next_worksheet_name(course_code),
         "classroom_code": _random_classroom_code(),
-        "start_time": datetime.now().astimezone(),
+        "start_time": now,
         "duration_minutes": duration_minutes,
         "dev_mode_enabled": dev_mode_enabled,
         "is_active": True,
         "rotation_task": None,
         "current_token": token,
         "previous_token": None,
+        # Sliding window: list of (token, created_at) tuples for grace period validation
+        "valid_tokens": [(token, now)],
         "used_tokens": set(),
         "used_ips": set(),
         "submission_count": 0,
@@ -87,19 +90,68 @@ async def _rotate_loop(session_id: str) -> None:
             break
         old_current = session.get("current_token")
         if old_current:
-            session["used_tokens"].add(old_current)
             session["previous_token"] = old_current
-        session["current_token"] = _new_token()
+        new_token = _new_token()
+        now = datetime.now().astimezone()
+        session["current_token"] = new_token
+        # Add to sliding window
+        session["valid_tokens"].append((new_token, now))
+        # Prune tokens older than grace period
+        _prune_expired_tokens(session)
+
+
+def _prune_expired_tokens(session: dict[str, Any]) -> None:
+    """Remove tokens from valid_tokens that are older than the grace period."""
+    grace = settings.token_grace_period_sec
+    cutoff = datetime.now().astimezone() - timedelta(seconds=grace)
+    session["valid_tokens"] = [
+        (tok, ts) for tok, ts in session["valid_tokens"] if ts > cutoff
+    ]
+
+
+def _is_token_in_grace_period(session: dict[str, Any], token: str) -> bool:
+    """Check if a token is within the grace period window."""
+    grace = settings.token_grace_period_sec
+    cutoff = datetime.now().astimezone() - timedelta(seconds=grace)
+    for tok, ts in session["valid_tokens"]:
+        if tok == token and ts > cutoff:
+            return True
+    # Also check current and previous token (always valid while session active)
+    if token == session.get("current_token") or token == session.get("previous_token"):
+        return True
+    return False
 
 
 def validate_submission(session_id: str, token: str, ip: str, allow_repeat: bool = False) -> str:
+    """Validate an attendance submission against security rules.
+
+    Checks:
+    - Session exists and is active
+    - Token is within the grace period window (current, previous, or recently issued)
+    - Token hasn't been used before (unless dev mode)
+    - IP hasn't been used before (unless dev mode)
+    - Session hasn't expired
+
+    Args:
+        session_id: Session to validate against
+        token: QR token from student submission
+        ip: Student's IP address
+        allow_repeat: If True, allows repeated submissions from same IP/token
+
+    Returns:
+        "VALID" if submission is allowed, otherwise error code:
+            - "SESSION_NOT_FOUND": Session doesn't exist
+            - "SESSION_EXPIRED": Session has expired
+            - "TOKEN_INVALID": Token is not within grace period
+            - "IP_ALREADY_USED": IP has already submitted (not in dev mode)
+    """
     session = sessions.get(session_id)
     if not session:
         return "SESSION_NOT_FOUND"
     if not session.get("is_active", False) or _is_expired(session):
         session["is_active"] = False
         return "SESSION_EXPIRED"
-    if token not in {session.get("current_token"), session.get("previous_token")}:
+    if not _is_token_in_grace_period(session, token):
         return "TOKEN_INVALID"
     if not allow_repeat:
         if token in session["used_tokens"]:

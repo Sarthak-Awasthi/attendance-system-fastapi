@@ -25,7 +25,6 @@ from services.config_service import (
     save_app_settings,
     upsert_course,
 )
-from services.excel_service import get_next_worksheet_name, initialize_worksheet
 from services.qr_generator import generate_qr_base64
 from services.session_manager import (
     create_session,
@@ -34,6 +33,7 @@ from services.session_manager import (
     get_time_remaining_seconds,
     set_session_dev_mode,
 )
+from services.storage_factory import get_storage
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -135,7 +135,11 @@ async def update_teacher_settings(payload: UpdateTeacherSettingsRequest) -> dict
             "excel_data_dir": payload.excelDataDir,
             "default_session_duration_minutes": payload.defaultSessionDurationMinutes,
             "qr_rotate_interval_sec": payload.qrRotateIntervalSec,
+            "token_grace_period_sec": payload.tokenGracePeriodSec,
             "base_url": payload.baseUrl,
+            "storage_backend": payload.storageBackend,
+            "google_credentials_path": payload.googleCredentialsPath,
+            "google_spreadsheet_key": payload.googleSpreadsheetKey,
         }
     )
     logger.info("Updated teacher app settings")
@@ -170,14 +174,15 @@ async def start_session(payload: StartSessionRequest) -> dict:
         logger.warning("Rejected session start for unknown course %s", course_code)
         raise HTTPException(status_code=400, detail="Unknown course code")
 
-    worksheet_name = await get_next_worksheet_name(course_code)
+    storage = get_storage()
+    worksheet_name = await storage.get_next_worksheet_name(course_code)
     session = await create_session(
         course_code,
         payload.durationMinutes,
         worksheet_name=worksheet_name,
         dev_mode_enabled=bool(payload.devMode and settings.allow_student_dev_mode),
     )
-    await initialize_worksheet(session["course_code"], session["worksheet_name"])
+    await storage.initialize_worksheet(session["course_code"], session["worksheet_name"])
     logger.info("Started session %s for %s", session["session_id"], course_code)
 
     return {
@@ -212,6 +217,8 @@ async def get_live_qr(session_id: str, secret: str = Query(default="")) -> dict:
         "globalDevModeEnabled": settings.allow_student_dev_mode,
         "devModeEnabled": bool(session.get("dev_mode_enabled", False) and settings.allow_student_dev_mode),
         "isActive": session["is_active"],
+        "qrRotateIntervalSec": settings.qr_rotate_interval_sec,
+        "tokenGracePeriodSec": settings.token_grace_period_sec,
     }
 
 

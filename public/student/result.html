@@ -4,15 +4,23 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Attendance Result</title>
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml" />
   <script src="/static/scripts/theme.js"></script>
   <link rel="stylesheet" href="/static/styles/main.css" />
 </head>
 <body>
-  <main class="page">
-    <div class="page-header">
+  <header class="topbar">
+    <div class="topbar-brand">
+      <img class="topbar-logo" src="/static/iith.svg" alt="IIT Hyderabad" />
+      <span class="topbar-title">Attendance System</span>
+    </div>
+    <div class="topbar-actions">
       <button class="button button-secondary theme-toggle" type="button" data-theme-toggle aria-label="Toggle dark mode"></button>
     </div>
+  </header>
+  <main class="page">
     <div class="card text-center">
+      <div class="result-icon" id="resultIcon"></div>
       <h1 class="result-title" id="title">Attendance Result</h1>
       <p class="result-message" id="message"></p>
     </div>
@@ -23,19 +31,34 @@
     const ok = params.get('ok') === '1';
     const msg = params.get('msg');
 
+    const icon = document.getElementById('resultIcon');
     const title = document.getElementById('title');
     const message = document.getElementById('message');
 
     if (ok) {
-      title.className = 'result-title status-success';
+      icon.className = 'result-icon result-icon-success';
+      icon.textContent = '✓';
+      title.className = 'result-title';
+      title.style.color = 'var(--color-success)';
       title.textContent = 'Attendance Marked';
       message.textContent = 'Your attendance has been recorded successfully.';
     } else {
-      title.className = 'result-title status-error';
+      icon.className = 'result-icon result-icon-error';
+      icon.textContent = '✕';
+      title.className = 'result-title';
+      title.style.color = 'var(--color-error)';
       title.textContent = 'Attendance Failed';
-      message.textContent = msg || 'Unable to mark attendance.';
+
+      // Friendly error messages
+      const friendlyMessages = {
+        'SESSION_NOT_FOUND': 'This session no longer exists. Ask your teacher for a new QR code.',
+        'SESSION_EXPIRED': 'The session has ended. You can no longer mark attendance.',
+        'TOKEN_INVALID': 'Your QR code has expired. Scan the latest QR from your teacher.',
+        'IP_ALREADY_USED': 'Attendance was already submitted from this device.',
+        'ATTENDANCE_WRITE_FAILED': 'Server error — please try again.',
+      };
+      message.textContent = friendlyMessages[msg] || msg || 'Unable to mark attendance.';
     }
   </script>
 </body>
 </html>
-

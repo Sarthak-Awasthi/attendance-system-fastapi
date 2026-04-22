@@ -1,0 +1,79 @@
+"""Constants and configuration values for the Attendance System."""
+
+from __future__ import annotations
+
+# Classroom code generation
+CLASSROOM_CODE_LENGTH = 6
+
+# Excel worksheet naming
+WORKSHEET_DATE_FORMAT = "%Y-%m-%d"
+
+# Session validation
+VALID_SESSION_CODES = {"SESSION_NOT_FOUND", "SESSION_EXPIRED", "TOKEN_INVALID", "IP_ALREADY_USED", "VALID"}
+
+# Token length
+TOKEN_HEX_LENGTH = 32  # UUID4 hex representation
+
+# Network detection
+NETWORK_DETECTION_TIMEOUT = 2  # seconds
+NETWORK_DETECTION_PORT = 80
+NETWORK_DETECTION_IPS = ["8.8.8.8", "1.1.1.1", "9.9.9.9"]  # Google DNS, Cloudflare DNS, Quad9 DNS
+
+# Excel constants
+ROLL_HEADER = "RollNo."
+ATTENDANCE_PRESENT_VALUE = 1
+ATTENDANCE_ABSENT_VALUE = 0
+EXCEL_COLUMN_WIDTH_ROLL = 18
+EXCEL_COLUMN_WIDTH_DATE = 14
+
+# Request validation
+ROLL_NUMBER_MIN_LENGTH = 4
+ROLL_NUMBER_MAX_LENGTH = 15
+ROLL_NUMBER_PATTERN = r"^[A-Z0-9]{4,15}$"
+
+# Teacher secret
+TEACHER_SECRET_MIN_LENGTH = 4
+TEACHER_SECRET_MAX_LENGTH = 120
+
+# Course code
+COURSE_CODE_MIN_LENGTH = 2
+COURSE_CODE_MAX_LENGTH = 20
+
+# Course name
+COURSE_NAME_MIN_LENGTH = 2
+COURSE_NAME_MAX_LENGTH = 120
+
+# Session duration
+SESSION_DURATION_MIN = 1  # minutes
+SESSION_DURATION_MAX = 360  # minutes
+
+# QR rotation interval
+QR_ROTATE_INTERVAL_MIN = 1  # seconds
+QR_ROTATE_INTERVAL_MAX = 120  # seconds
+
+# Token grace period (how long a scanned token remains valid for submission)
+TOKEN_GRACE_PERIOD_MIN = 5  # seconds
+TOKEN_GRACE_PERIOD_MAX = 120  # seconds
+TOKEN_GRACE_PERIOD_DEFAULT = 30  # seconds
+
+# Port range
+PORT_MIN = 1
+PORT_MAX = 65535
+
+# HTTP Status codes
+STATUS_OK = 200
+STATUS_BAD_REQUEST = 400
+STATUS_UNAUTHORIZED = 401
+STATUS_NOT_FOUND = 404
+STATUS_CONFLICT = 409
+STATUS_GONE = 410  # Session expired
+STATUS_INTERNAL_ERROR = 500
+
+# Error messages
+ERROR_INVALID_SECRET = "Invalid teacher secret"
+ERROR_SESSION_NOT_FOUND = "SESSION_NOT_FOUND"
+ERROR_SESSION_EXPIRED = "SESSION_EXPIRED"
+ERROR_TOKEN_INVALID = "TOKEN_INVALID"
+ERROR_IP_ALREADY_USED = "IP_ALREADY_USED"
+ERROR_ATTENDANCE_WRITE_FAILED = "ATTENDANCE_WRITE_FAILED"
+

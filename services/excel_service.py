@@ -135,6 +135,23 @@ async def mark_attendance(
     attendance_date: str | None = None,
     present: int = 1,
 ) -> None:
+    """Mark attendance for a student in Excel workbook.
+
+    This function is thread-safe using per-course locks. It creates or updates
+    the attendance record in the Excel file with a 1 (present) or 0 (absent).
+
+    Args:
+        course_code: Course code (used to find workbook)
+        worksheet_name: Sheet name within workbook
+        roll_number: Student's roll number
+        attendance_date: Date in YYYY-MM-DD format; defaults to today
+        present: 1 for present, 0 for absent (default: 1)
+
+    Raises:
+        FileNotFoundError: If course workbook doesn't exist
+        ValueError: If worksheet doesn't exist
+        IOError: If file I/O fails
+    """
     lock = course_locks[course_code]
     async with lock:
         await asyncio.to_thread(

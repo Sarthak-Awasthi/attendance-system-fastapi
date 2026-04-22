@@ -4,26 +4,35 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Teacher - Attendance Setup</title>
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml" />
   <script src="/static/scripts/theme.js"></script>
   <link rel="stylesheet" href="/static/styles/main.css" />
 </head>
 <body>
-  <main class="page">
-    <div class="page-header">
+  <header class="topbar">
+    <a class="topbar-brand" href="/teacher">
+      <img class="topbar-logo" src="/static/iith.svg" alt="IIT Hyderabad" />
+      <span class="topbar-title">Attendance System</span>
+    </a>
+    <div class="topbar-actions">
       <button class="button button-secondary theme-toggle" type="button" data-theme-toggle aria-label="Toggle dark mode"></button>
     </div>
+  </header>
+  <div class="toast-container" id="toastContainer"></div>
+  <main class="page">
     <h1>Start Attendance Session</h1>
     <p class="subtitle">Create a timed session and share the generated QR with your class.</p>
-    <p class="mt-16"><a class="link" href="/teacher/config">Open teacher configuration</a></p>
+    <p class="mt-16"><a class="link" href="/teacher/config">Open teacher configuration →</a></p>
     <div class="card" id="bootstrapCard" style="display: none;">
-      <p class="subtitle">First run detected. Set a teacher secret to secure the system.</p>
+      <h2 class="section-title">First-Time Setup</h2>
+      <p class="subtitle" style="margin-top: var(--space-2);">Set a teacher secret to secure the system.</p>
       <label class="label" for="bootstrapSecret">New Teacher Secret</label>
-      <input class="input" id="bootstrapSecret" type="password" />
+      <input class="input" id="bootstrapSecret" type="password" placeholder="At least 4 characters" />
 
       <label class="label" for="bootstrapConfirm">Confirm Teacher Secret</label>
-      <input class="input" id="bootstrapConfirm" type="password" />
+      <input class="input" id="bootstrapConfirm" type="password" placeholder="Re-enter secret" />
 
-      <button class="button button-primary" id="bootstrapBtn">Save Teacher Secret</button>
+      <button class="button button-primary" id="bootstrapBtn" style="margin-top: var(--space-3);">Save Teacher Secret</button>
       <div class="status status-error" id="bootstrapError"></div>
     </div>
 
@@ -35,9 +44,9 @@
       <input class="input" id="duration" type="number" min="1" value="10" />
 
       <label class="label" for="secret">Teacher Secret</label>
-      <input class="input" id="secret" type="password" />
+      <input class="input" id="secret" type="password" placeholder="Enter your teacher secret" />
 
-      <button class="button button-primary" id="startBtn">Start Session</button>
+      <button class="button button-primary" id="startBtn" style="margin-top: var(--space-3);">Start Session</button>
       <div class="status status-error" id="error"></div>
     </div>
   </main>
@@ -50,6 +59,18 @@
     const sessionCard = document.getElementById('sessionCard');
     const bootstrapBtn = document.getElementById('bootstrapBtn');
     const bootstrapErrorEl = document.getElementById('bootstrapError');
+    const toastContainer = document.getElementById('toastContainer');
+
+    function showToast(message, type = 'info', duration = 4000) {
+      const toast = document.createElement('div');
+      toast.className = `toast toast-${type}`;
+      toast.textContent = message;
+      toastContainer.appendChild(toast);
+      setTimeout(() => {
+        toast.classList.add('toast-out');
+        toast.addEventListener('animationend', () => toast.remove());
+      }, duration);
+    }
 
     async function loadCourses() {
       courseSelect.innerHTML = '';
@@ -61,7 +82,7 @@
       (data.courses || []).forEach((c) => {
         const option = document.createElement('option');
         option.value = c.code;
-        option.textContent = `${c.code} - ${c.name || ''}`;
+        option.textContent = `${c.code} — ${c.name || ''}`;
         courseSelect.appendChild(option);
       });
 
@@ -72,9 +93,7 @@
 
     async function checkBootstrapStatus() {
       const res = await fetch('/api/teacher/bootstrap/status');
-      if (!res.ok) {
-        throw new Error('Failed to check bootstrap status');
-      }
+      if (!res.ok) throw new Error('Failed to check bootstrap status');
       const data = await res.json();
       return Boolean(data.requiresBootstrap);
     }
@@ -86,49 +105,69 @@
 
     bootstrapBtn.addEventListener('click', async () => {
       bootstrapErrorEl.textContent = '';
+      bootstrapBtn.classList.add('loading');
+      bootstrapBtn.disabled = true;
+
       const newSecret = document.getElementById('bootstrapSecret').value;
       const confirmNewSecret = document.getElementById('bootstrapConfirm').value;
 
-      const res = await fetch('/api/teacher/bootstrap', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ newSecret, confirmNewSecret })
-      });
+      try {
+        const res = await fetch('/api/teacher/bootstrap', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ newSecret, confirmNewSecret })
+        });
 
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        bootstrapErrorEl.textContent = err.detail || 'Failed to save teacher secret';
-        return;
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          bootstrapErrorEl.textContent = err.detail || 'Failed to save teacher secret';
+          return;
+        }
+
+        document.getElementById('secret').value = newSecret;
+        setBootstrapMode(false);
+        showToast('Teacher secret configured!', 'success');
+        await loadCourses();
+      } finally {
+        bootstrapBtn.classList.remove('loading');
+        bootstrapBtn.disabled = false;
       }
-
-      document.getElementById('secret').value = newSecret;
-      setBootstrapMode(false);
-      await loadCourses();
     });
 
     startBtn.addEventListener('click', async () => {
       errorEl.textContent = '';
+      startBtn.classList.add('loading');
+      startBtn.disabled = true;
+
+      const secretValue = document.getElementById('secret').value;
       const payload = {
         courseCode: courseSelect.value,
         durationMinutes: Number(document.getElementById('duration').value || 10),
-        secret: document.getElementById('secret').value
+        secret: secretValue
       };
 
-      const res = await fetch('/api/teacher/session/start', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
+      try {
+        const res = await fetch('/api/teacher/session/start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
 
-      if (!res.ok) {
-        const err = await res.json();
-        errorEl.textContent = err.detail || 'Failed to start session';
-        return;
+        if (!res.ok) {
+          const err = await res.json();
+          errorEl.textContent = err.detail || 'Failed to start session';
+          return;
+        }
+
+        const data = await res.json();
+        // Store in sessionStorage (not URL) for security
+        sessionStorage.setItem('activeSessionId', data.sessionId);
+        sessionStorage.setItem('teacherSecret', secretValue);
+        window.location.href = '/teacher/dashboard';
+      } finally {
+        startBtn.classList.remove('loading');
+        startBtn.disabled = false;
       }
-
-      const data = await res.json();
-      const query = new URLSearchParams({ session: data.sessionId, secret: payload.secret });
-      window.location.href = `/teacher/dashboard?${query.toString()}`;
     });
 
     (async () => {
@@ -145,4 +184,3 @@
   </script>
 </body>
 </html>
-

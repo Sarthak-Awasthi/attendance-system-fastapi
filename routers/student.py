@@ -9,8 +9,8 @@ from fastapi.responses import FileResponse
 
 from core.config import get_public_dir, settings
 from models import SubmitAttendanceRequest
-from services.excel_service import mark_attendance
 from services.session_manager import get_session, record_submission, validate_submission
+from services.storage_factory import get_storage
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -53,16 +53,17 @@ async def submit_attendance(payload: SubmitAttendanceRequest, request: Request) 
 
     now = datetime.now().astimezone()
     try:
-        await mark_attendance(
+        storage = get_storage()
+        await storage.mark_attendance(
             session["course_code"],
             session["worksheet_name"],
             payload.rollNumber.upper(),
             attendance_date=now.date().isoformat(),
             present=1,
         )
-    except Exception:
-        logger.exception("Excel write failed for session %s", payload.sessionId)
-        raise HTTPException(status_code=500, detail="ATTENDANCE_WRITE_FAILED")
+    except (IOError, ValueError, FileNotFoundError) as exc:
+        logger.exception("Storage write failed for session %s", payload.sessionId)
+        raise HTTPException(status_code=500, detail="ATTENDANCE_WRITE_FAILED") from exc
 
     record_submission(payload.sessionId, ip, payload.token)
     logger.info("Recorded attendance for roll %s in session %s", payload.rollNumber.upper(), payload.sessionId)

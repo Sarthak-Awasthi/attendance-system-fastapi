@@ -20,7 +20,11 @@ ALLOWED_SETTING_KEYS = {
     "excel_data_dir",
     "default_session_duration_minutes",
     "qr_rotate_interval_sec",
+    "token_grace_period_sec",
     "base_url",
+    "storage_backend",
+    "google_credentials_path",
+    "google_spreadsheet_key",
 }
 
 
@@ -44,8 +48,14 @@ def list_courses() -> list[dict[str, str]]:
     source_path = get_courses_config_path()
     if not source_path.exists():
         return []
-    with source_path.open("r", encoding="utf-8") as handle:
-        data = json.load(handle)
+    try:
+        with source_path.open("r", encoding="utf-8") as handle:
+            data = json.load(handle)
+    except (json.JSONDecodeError, IOError, UnicodeDecodeError) as exc:
+        import logging
+        logging.getLogger(__name__).warning("Failed to load courses from %s: %s", source_path, exc)
+        return []
+
     if not isinstance(data, list):
         return []
 
@@ -113,7 +123,11 @@ def get_effective_settings() -> dict[str, Any]:
         "excel_data_dir": str(settings.excel_data_dir),
         "default_session_duration_minutes": settings.default_session_duration_minutes,
         "qr_rotate_interval_sec": settings.qr_rotate_interval_sec,
+        "token_grace_period_sec": settings.token_grace_period_sec,
         "base_url": settings.base_url,
+        "storage_backend": settings.storage_backend,
+        "google_credentials_path": settings.google_credentials_path,
+        "google_spreadsheet_key": settings.google_spreadsheet_key,
     }
 
 
@@ -127,10 +141,14 @@ def save_app_settings(payload: dict[str, Any]) -> dict[str, Any]:
     app_settings_path = get_app_settings_path()
     current: dict[str, Any] = {}
     if app_settings_path.exists():
-        with app_settings_path.open("r", encoding="utf-8") as handle:
-            loaded = json.load(handle)
-            if isinstance(loaded, dict):
-                current = loaded
+        try:
+            with app_settings_path.open("r", encoding="utf-8") as handle:
+                loaded = json.load(handle)
+                if isinstance(loaded, dict):
+                    current = loaded
+        except (json.JSONDecodeError, IOError, UnicodeDecodeError) as exc:
+            import logging
+            logging.getLogger(__name__).warning("Failed to load existing settings: %s", exc)
 
     current.update(sanitized)
     get_user_config_dir().mkdir(parents=True, exist_ok=True)

@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Google Sheets Setup Guide</title>
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml" />
+  <script src="/static/scripts/theme.js"></script>
+  <link rel="stylesheet" href="/static/styles/main.css" />
+  <style>
+    .guide-steps { counter-reset: step; }
+    .step {
+      position: relative;
+      padding-left: 48px;
+      margin-bottom: var(--space-4);
+    }
+    .step::before {
+      counter-increment: step;
+      content: counter(step);
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: var(--color-primary);
+      color: #fff;
+      font-weight: 700;
+      font-size: 0.875rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .step h2 {
+      font-size: 1.05rem;
+      margin-bottom: var(--space-1);
+    }
+    .step p, .step ol {
+      color: var(--color-text-secondary);
+      font-size: 0.925rem;
+      line-height: 1.7;
+    }
+    .step ol {
+      padding-left: 1.2em;
+      margin: var(--space-1) 0 0;
+    }
+    .step ol li { margin-bottom: 6px; }
+    .step code {
+      background: var(--color-bg-alt);
+      border: 1px solid var(--color-border);
+      border-radius: 4px;
+      padding: 1px 6px;
+      font-size: 0.85em;
+      font-family: "SF Mono", Menlo, Consolas, monospace;
+      word-break: break-all;
+    }
+    .step pre {
+      background: var(--color-bg-alt);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm);
+      padding: var(--space-2) var(--space-3);
+      overflow-x: auto;
+      font-size: 0.85rem;
+      line-height: 1.5;
+    }
+    .step pre code {
+      background: none;
+      border: none;
+      padding: 0;
+    }
+    .troubleshoot-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.875rem;
+      margin-top: var(--space-2);
+    }
+    .troubleshoot-table th,
+    .troubleshoot-table td {
+      text-align: left;
+      padding: var(--space-1) var(--space-2);
+      border-bottom: 1px solid var(--color-border);
+    }
+    .troubleshoot-table th {
+      color: var(--color-text-muted);
+      font-weight: 600;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .troubleshoot-table td:first-child {
+      color: var(--color-error);
+      font-weight: 500;
+      white-space: nowrap;
+    }
+    .cost-note {
+      background: var(--color-success-bg);
+      border: 1px solid rgba(22, 163, 74, 0.15);
+      color: var(--color-success);
+      border-radius: var(--radius-md);
+      padding: var(--space-2) var(--space-3);
+      font-size: 0.875rem;
+      font-weight: 500;
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <a class="topbar-brand" href="/teacher/config">
+      <img class="topbar-logo" src="/static/iith.svg" alt="IIT Hyderabad" />
+      <span class="topbar-title">Attendance System</span>
+    </a>
+    <div class="topbar-actions">
+      <button class="button button-secondary theme-toggle" type="button" data-theme-toggle aria-label="Toggle dark mode"></button>
+    </div>
+  </header>
+  <main class="page">
+
+    <h1>Google Sheets Setup Guide</h1>
+    <p class="subtitle">Connect the Attendance System to Google Sheets so attendance records are saved directly to the cloud. Takes about 5 minutes.</p>
+    <p><a class="link" href="/teacher/config">← Back to configuration</a></p>
+
+    <div class="cost-note" style="margin-bottom: var(--space-4);">
+      💡 Google Sheets API is <strong>completely free</strong> for classroom usage (up to 300 reads and 60 writes per minute).
+    </div>
+
+    <div class="card guide-steps">
+
+      <div class="step">
+        <h2>Create a Google Cloud Project</h2>
+        <ol>
+          <li>Go to <a class="link" href="https://console.cloud.google.com/" target="_blank" rel="noopener">Google Cloud Console</a></li>
+          <li>Click <strong>Select a project</strong> → <strong>New Project</strong></li>
+          <li>Name it (e.g., <code>Attendance System</code>) and click <strong>Create</strong></li>
+        </ol>
+      </div>
+
+      <hr class="divider" />
+
+      <div class="step">
+        <h2>Enable the Required APIs</h2>
+        <ol>
+          <li>In your project, go to <strong>APIs &amp; Services</strong> → <strong>Library</strong></li>
+          <li>Search for <strong>Google Sheets API</strong> → click it → press <strong>Enable</strong></li>
+          <li>Also search for and enable <strong>Google Drive API</strong></li>
+        </ol>
+      </div>
+
+      <hr class="divider" />
+
+      <div class="step">
+        <h2>Create a Service Account</h2>
+        <ol>
+          <li>Go to <strong>APIs &amp; Services</strong> → <strong>Credentials</strong></li>
+          <li>Click <strong>Create Credentials</strong> → <strong>Service Account</strong></li>
+          <li>Name it (e.g., <code>attendance-writer</code>) and click <strong>Create and Continue</strong></li>
+          <li>For role, select <strong>Editor</strong> and click <strong>Continue</strong> → <strong>Done</strong></li>
+          <li>Click on the newly created service account</li>
+          <li>Go to the <strong>Keys</strong> tab → <strong>Add Key</strong> → <strong>Create new key</strong></li>
+          <li>Choose <strong>JSON</strong> and click <strong>Create</strong></li>
+          <li>Save the downloaded JSON file to a safe, permanent location on your machine</li>
+        </ol>
+      </div>
+
+      <hr class="divider" />
+
+      <div class="step">
+        <h2>Create &amp; Share Your Spreadsheet</h2>
+        <ol>
+          <li>Go to <a class="link" href="https://sheets.google.com/" target="_blank" rel="noopener">Google Sheets</a> and create a new spreadsheet</li>
+          <li>Name it after your course (e.g., <code>CS301 Attendance</code>)</li>
+          <li>Copy the <strong>spreadsheet ID</strong> from the URL:
+            <pre><code>https://docs.google.com/spreadsheets/d/<strong>SPREADSHEET_ID_HERE</strong>/edit</code></pre>
+          </li>
+          <li>Click <strong>Share</strong> on the spreadsheet</li>
+          <li>Add the <strong>service account email</strong> (found in your JSON file as <code>client_email</code>, looks like <code>name@project.iam.gserviceaccount.com</code>)</li>
+          <li>Give it <strong>Editor</strong> access and click <strong>Send</strong></li>
+        </ol>
+        <p>Repeat this step for each course you want to track.</p>
+      </div>
+
+      <hr class="divider" />
+
+      <div class="step">
+        <h2>Configure in the App</h2>
+        <ol>
+          <li>Open the <a class="link" href="/teacher/config">teacher configuration page</a></li>
+          <li>Under <strong>Storage Backend</strong>, select <strong>Google Sheets</strong> (or <strong>Both</strong> for dual-write to local Excel and cloud)</li>
+          <li>Set the <strong>Service Account JSON Path</strong> to the absolute path of your downloaded JSON file, e.g.:
+            <pre><code>/Users/professor/credentials/attendance-service-account.json</code></pre>
+          </li>
+          <li>Set the <strong>Spreadsheet Key / Mapping</strong>:
+            <ul style="list-style: disc; padding-left: 1.2em; margin-top: 4px;">
+              <li><strong>Single spreadsheet for all courses:</strong> paste just the spreadsheet ID</li>
+              <li><strong>One spreadsheet per course:</strong> use the format <code>CS301=ID1,MA101=ID2</code></li>
+            </ul>
+          </li>
+          <li>Click <strong>Save Settings</strong></li>
+        </ol>
+      </div>
+
+    </div>
+
+    <div class="card" style="margin-top: var(--space-4);">
+      <h2 class="section-title">Troubleshooting</h2>
+      <table class="troubleshoot-table">
+        <thead>
+          <tr><th>Error</th><th>Solution</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Credentials path not configured</td>
+            <td>Set the path in teacher configuration → Storage Backend settings</td>
+          </tr>
+          <tr>
+            <td>Permission denied (403)</td>
+            <td>Make sure you shared the spreadsheet with the service account email (Step 4)</td>
+          </tr>
+          <tr>
+            <td>Spreadsheet not found</td>
+            <td>Double-check the spreadsheet ID — it's the long string from the URL between <code>/d/</code> and <code>/edit</code></td>
+          </tr>
+          <tr>
+            <td>API has not been enabled</td>
+            <td>Enable both Google Sheets API and Google Drive API in the Cloud Console (Step 2)</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+  </main>
+</body>
+</html>

@@ -4,29 +4,36 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Submit Attendance</title>
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml" />
   <script src="/static/scripts/theme.js"></script>
   <link rel="stylesheet" href="/static/styles/main.css" />
 </head>
 <body>
-  <main class="page">
-    <div class="page-header">
+  <header class="topbar">
+    <div class="topbar-brand">
+      <img class="topbar-logo" src="/static/iith.svg" alt="IIT Hyderabad" />
+      <span class="topbar-title">Attendance System</span>
+    </div>
+    <div class="topbar-actions">
       <button class="button button-secondary theme-toggle" type="button" data-theme-toggle aria-label="Toggle dark mode"></button>
     </div>
-    <h1>Attendance Form</h1>
-    <p class="subtitle">Enter your roll number to mark attendance for this live session.</p>
+  </header>
+  <main class="page">
+    <h1>Mark Attendance</h1>
+    <p class="subtitle">Enter your roll number to record your attendance for this session.</p>
     <div class="card">
       <label class="label" for="roll">Roll Number</label>
-      <input class="input" id="roll" type="text" placeholder="e.g. 21CS1001" maxlength="15" />
-      <label class="label" for="rememberRoll">
+      <input class="input" id="roll" type="text" placeholder="e.g. 21CS1001" maxlength="15" autocomplete="off" autofocus />
+      <label class="label" for="rememberRoll" style="margin-top: var(--space-2);">
         <input id="rememberRoll" type="checkbox" />
         Remember roll number on this device
       </label>
-      <div class="button-row">
-        <button class="button button-secondary" id="quickSubmitBtn" type="button" style="display: none;"></button>
-        <button class="button button-secondary" id="clearSavedRollBtn" type="button" style="display: none;">Clear saved roll</button>
+      <div class="button-row" id="savedActions" style="display: none;">
+        <button class="button button-primary" id="quickSubmitBtn" type="button"></button>
+        <button class="button button-secondary" id="clearSavedRollBtn" type="button">Clear saved</button>
       </div>
-      <button class="button button-primary" id="submitBtn">Submit Attendance</button>
-      <div class="status status-error" id="msg"></div>
+      <button class="button button-primary" id="submitBtn" style="margin-top: var(--space-3);">Submit Attendance</button>
+      <div class="status" id="msg"></div>
     </div>
   </main>
 
@@ -39,10 +46,14 @@
     const rememberRollToggle = document.getElementById('rememberRoll');
     const quickSubmitBtn = document.getElementById('quickSubmitBtn');
     const clearSavedRollBtn = document.getElementById('clearSavedRollBtn');
+    const savedActions = document.getElementById('savedActions');
+    const submitBtn = document.getElementById('submitBtn');
     const ROLL_STORAGE_KEY = 'attendance-roll-number';
 
     if (!token || !sessionId) {
-      msg.textContent = 'Invalid QR link.';
+      msg.className = 'status status-error';
+      msg.textContent = 'Invalid QR link — scan the QR code again.';
+      submitBtn.disabled = true;
     }
 
     function normalizeRoll(value) {
@@ -61,48 +72,70 @@
     function renderSavedRollActions() {
       const saved = getSavedRoll();
       const hasSaved = Boolean(saved);
-      quickSubmitBtn.style.display = hasSaved ? 'inline-block' : 'none';
-      clearSavedRollBtn.style.display = hasSaved ? 'inline-block' : 'none';
-      quickSubmitBtn.textContent = hasSaved ? `One-touch submit as ${saved}` : '';
+      savedActions.style.display = hasSaved ? 'flex' : 'none';
+      quickSubmitBtn.textContent = hasSaved ? `Quick submit as ${saved}` : '';
       rememberRollToggle.checked = hasSaved;
     }
 
     async function submitAttendance(rollNumber) {
-      const res = await fetch('/api/student/submit', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rollNumber, token, sessionId })
-      });
+      submitBtn.classList.add('loading');
+      submitBtn.disabled = true;
+      quickSubmitBtn.classList.add('loading');
+      quickSubmitBtn.disabled = true;
 
-      if (res.ok) {
-        window.location.href = '/static/student/result.html?ok=1';
-        return;
-      }
-
-      let detail = 'Submission failed';
       try {
-        const err = await res.json();
-        detail = err.detail || detail;
-      } catch (_) {
-        detail = 'Submission failed';
+        const res = await fetch('/api/student/submit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ rollNumber, token, sessionId })
+        });
+
+        if (res.ok) {
+          window.location.href = '/static/student/result.html?ok=1';
+          return;
+        }
+
+        let detail = 'Submission failed';
+        try {
+          const err = await res.json();
+          detail = err.detail || detail;
+        } catch (_) {}
+        window.location.href = `/static/student/result.html?ok=0&msg=${encodeURIComponent(detail)}`;
+      } catch (err) {
+        window.location.href = `/static/student/result.html?ok=0&msg=${encodeURIComponent('Network error — try again.')}`;
       }
-      window.location.href = `/static/student/result.html?ok=0&msg=${encodeURIComponent(detail)}`;
     }
 
     const restoredRoll = getSavedRoll();
     if (restoredRoll) {
       rollInput.value = restoredRoll;
       msg.className = 'status status-success';
-      msg.textContent = `Saved roll loaded: ${restoredRoll}`;
+      msg.textContent = `Saved roll: ${restoredRoll}`;
     }
     renderSavedRollActions();
 
-    document.getElementById('submitBtn').addEventListener('click', async () => {
+    // Inline validation
+    rollInput.addEventListener('input', () => {
+      const val = normalizeRoll(rollInput.value);
+      if (val.length > 0 && val.length < 4) {
+        msg.className = 'status status-error';
+        msg.textContent = 'Roll number must be at least 4 characters.';
+      } else if (val.length >= 4 && !isValidRoll(val)) {
+        msg.className = 'status status-error';
+        msg.textContent = 'Only letters and numbers allowed.';
+      } else {
+        msg.className = 'status';
+        msg.textContent = '';
+      }
+    });
+
+    submitBtn.addEventListener('click', async () => {
       msg.textContent = '';
       const rollNumber = normalizeRoll(rollInput.value);
       if (!isValidRoll(rollNumber)) {
         msg.className = 'status status-error';
-        msg.textContent = 'Enter a valid roll number (4-15 letters/numbers).';
+        msg.textContent = 'Enter a valid roll number (4–15 letters/numbers).';
+        rollInput.focus();
         return;
       }
 
@@ -115,11 +148,16 @@
       await submitAttendance(rollNumber);
     });
 
+    // Allow Enter key to submit
+    rollInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') submitBtn.click();
+    });
+
     quickSubmitBtn.addEventListener('click', async () => {
       const saved = getSavedRoll();
       if (!saved) {
         msg.className = 'status status-error';
-        msg.textContent = 'No saved roll found. Submit once with remember enabled.';
+        msg.textContent = 'No saved roll found.';
         return;
       }
       rollInput.value = saved;
@@ -131,10 +169,8 @@
       rememberRollToggle.checked = false;
       renderSavedRollActions();
       msg.className = 'status';
-      msg.textContent = 'Saved roll cleared for this device.';
+      msg.textContent = 'Saved roll cleared.';
     });
-
   </script>
 </body>
 </html>
-
